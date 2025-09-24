@@ -42,6 +42,7 @@ go build
 - `-prev-speaker` - использовать предыдущий фрейм speaker для компенсации задержки
 - `-ns-first` - применить подавление шума перед эхоподавлением (по умолчанию: AEC → NS)
 - `-ns-only` - применить только подавление шума (без эхоподавления, speaker файл не нужен)
+- `-aec-only` - применить только эхоподавление (без подавления шума)
 - `-help` - показать справку
 
 ### Настройки шумодава
@@ -67,19 +68,25 @@ go build
 ./speex -mic mic.alaw -speaker spk.alaw -output delayed.alaw -prev-speaker
 ```
 
-### Порядок обработки
+### Режимы обработки
 
-По умолчанию применяется **AEC → NS** (эхоподавление, затем подавление шума). Опция `-ns-first` меняет порядок на **NS → AEC**:
+Доступно 4 режима обработки аудио:
 
 ```bash
-# Обычный порядок: AEC → NS (по умолчанию)
+# 1. AEC → NS (по умолчанию): эхоподавление, затем шумоподавление
 ./speex -mic mic.alaw -speaker spk.alaw -output aec_first.alaw
 
-# Обратный порядок: NS → AEC
+# 2. NS → AEC: шумоподавление, затем эхоподавление  
 ./speex -mic mic.alaw -speaker spk.alaw -output ns_first.alaw -ns-first
 
-# Комбинация: NS → AEC + компенсация задержки  
-./speex -mic mic.alaw -speaker spk.alaw -output combined.alaw -ns-first -prev-speaker
+# 3. Только NS: только шумоподавление (speaker файл не нужен)
+./speex -mic mic.alaw -output ns_only.alaw -ns-only
+
+# 4. Только AEC: только эхоподавление (speaker файл обязателен)
+./speex -mic mic.alaw -speaker spk.alaw -output aec_only.alaw -aec-only
+
+# Дополнительно: любой режим с компенсацией задержки (кроме NS-only)
+./speex -mic mic.alaw -speaker spk.alaw -output delayed.alaw -aec-only -prev-speaker
 ```
 
 **Когда использовать NS-first:**
@@ -101,6 +108,24 @@ go build
 - Удаление фонового шума из аудиофайлов
 - Предобработка аудио перед другими алгоритмами
 - Быстрая очистка от шума без AEC overhead'а
+
+### Режим только эхоподавления
+
+Опция `-aec-only` применяет только эхоподавление без подавления шума. Speaker файл обязателен:
+
+```bash
+# Только эхоподавление (speaker файл обязателен)
+./speex -mic mic_with_echo.alaw -speaker reference.alaw -output clean.alaw -aec-only
+
+# AEC с компенсацией задержки
+./speex -mic mic.alaw -speaker ref.alaw -output clean.alaw -aec-only -prev-speaker
+```
+
+**Когда использовать AEC-only:**
+- Чистые записи с эхом (без фонового шума)
+- Телефонные/VoIP звонки с эхом
+- Когда нужно сохранить оригинальные характеристики звука
+- Предобработка для других алгоритмов шумоподавления
 
 ### Примеры настройки шумодава
 

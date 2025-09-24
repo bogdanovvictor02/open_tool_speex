@@ -23,6 +23,7 @@ func main() {
 		usePrevSpeaker = flag.Bool("prev-speaker", false, "Use previous speaker frame with current mic frame (delay compensation)")
 		nsFirst        = flag.Bool("ns-first", false, "Apply Noise Suppression before Echo Cancellation (default: AEC then NS)")
 		nsOnly         = flag.Bool("ns-only", false, "Apply only Noise Suppression (no echo cancellation)")
+		aecOnly        = flag.Bool("aec-only", false, "Apply only Echo Cancellation (no noise suppression)")
 
 		// Noise Suppression parameters
 		noiseSuppress = flag.Float64("noise-suppress", -15.0, "Noise suppression level in dB (more negative = more suppression)")
@@ -37,12 +38,23 @@ func main() {
 	flag.Parse()
 
 	// Validate mutually exclusive options
-	if *nsFirst && *nsOnly {
-		fmt.Fprintf(os.Stderr, "Error: -ns-first and -ns-only are mutually exclusive\n")
+	exclusiveCount := 0
+	if *nsFirst {
+		exclusiveCount++
+	}
+	if *nsOnly {
+		exclusiveCount++
+	}
+	if *aecOnly {
+		exclusiveCount++
+	}
+
+	if exclusiveCount > 1 {
+		fmt.Fprintf(os.Stderr, "Error: -ns-first, -ns-only, and -aec-only are mutually exclusive\n")
 		os.Exit(1)
 	}
 
-	// Speaker file is optional for NS-only mode
+	// Speaker file is required for all modes except NS-only
 	speakerRequired := !*nsOnly
 	if *help || *micFile == "" || (speakerRequired && *speakerFile == "") {
 		fmt.Fprintf(os.Stderr, "Speex AEC Console Tool\n\n")
@@ -53,7 +65,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  -output           Output file (default: output.alaw)\n")
 		fmt.Fprintf(os.Stderr, "  -prev-speaker     Use previous speaker frame for delay compensation\n")
 		fmt.Fprintf(os.Stderr, "  -ns-first         Apply Noise Suppression before Echo Cancellation\n")
-		fmt.Fprintf(os.Stderr, "  -ns-only          Apply only Noise Suppression (no echo cancellation)\n\n")
+		fmt.Fprintf(os.Stderr, "  -ns-only          Apply only Noise Suppression (no echo cancellation)\n")
+		fmt.Fprintf(os.Stderr, "  -aec-only         Apply only Echo Cancellation (no noise suppression)\n\n")
 		fmt.Fprintf(os.Stderr, "Noise Suppression Settings:\n")
 		fmt.Fprintf(os.Stderr, "  -noise-suppress   Noise suppression level in dB (default: -15.0, more negative = more suppression)\n")
 		fmt.Fprintf(os.Stderr, "  -vad              Enable Voice Activity Detection\n")
@@ -78,7 +91,7 @@ func main() {
 		AGCLevel:      *agcLevel,
 	}
 
-	if err := processAEC(*micFile, *speakerFile, *outputFile, *usePrevSpeaker, *nsFirst, *nsOnly, nsConfig); err != nil {
+	if err := processAEC(*micFile, *speakerFile, *outputFile, *usePrevSpeaker, *nsFirst, *nsOnly, *aecOnly, nsConfig); err != nil {
 		log.Fatalf("Error: %v", err)
 	}
 
@@ -86,7 +99,7 @@ func main() {
 }
 
 // processAEC performs echo cancellation on input files
-func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst, nsOnly bool, nsConfig NSConfig) error {
+func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst, nsOnly, aecOnly bool, nsConfig NSConfig) error {
 	// Open input files
 	micFile, err := os.Open(micPath)
 	if err != nil {
@@ -95,7 +108,7 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 	defer micFile.Close()
 
 	var speakerFile *os.File
-	if !nsOnly {
+	if !nsOnly { // Speaker file needed for AEC modes (including aec-only)
 		speakerFile, err = os.Open(speakerPath)
 		if err != nil {
 			return fmt.Errorf("failed to open speaker file: %w", err)
@@ -122,7 +135,7 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 		}
 		defer separateNS.Destroy()
 	} else {
-		// AEC modes: need AEC
+		// AEC modes (including aec-only): need AEC
 		aec, err = NewSpeexAEC(FRAME_SIZE, FILTER_LEN, SAMPLE_RATE)
 		if err != nil {
 			return fmt.Errorf("failed to initialize AEC: %w", err)
@@ -130,6 +143,7 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 		defer aec.Destroy()
 
 		// For NS-first mode, we need separate preprocessor that's not tied to echo state
+		// (AEC-only mode doesn't need separate NS)
 		if nsFirst {
 			separateNS, err = NewSpeexPreprocessorWithConfig(FRAME_SIZE, SAMPLE_RATE, nsConfig)
 			if err != nil {
@@ -162,6 +176,8 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 	var modeStr []string
 	if nsOnly {
 		modeStr = append(modeStr, "NS-only")
+	} else if aecOnly {
+		modeStr = append(modeStr, "AEC-only")
 	} else if nsFirst {
 		modeStr = append(modeStr, "NS-first")
 	} else {
@@ -241,8 +257,14 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 			if outputPcmFrame == nil {
 				return fmt.Errorf("NS processing failed at frame %d", frameCount)
 			}
+		} else if aecOnly {
+			// Mode 2: AEC only (no noise suppression)
+			outputPcmFrame = aec.ProcessFrameEchoOnly(micPcmFrame, aecSpeakerFrame)
+			if outputPcmFrame == nil {
+				return fmt.Errorf("AEC processing failed at frame %d", frameCount)
+			}
 		} else if nsFirst {
-			// Mode 2: NS first, then AEC
+			// Mode 3: NS first, then AEC
 			// Apply noise suppression to microphone signal first
 			nsOutput := separateNS.ProcessFrame(micPcmFrame)
 			if nsOutput == nil {
@@ -254,7 +276,7 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 				return fmt.Errorf("AEC processing failed at frame %d", frameCount)
 			}
 		} else {
-			// Mode 3: AEC first, then NS (default)
+			// Mode 4: AEC first, then NS (default)
 			outputPcmFrame = aec.ProcessFrame(micPcmFrame, aecSpeakerFrame)
 			if outputPcmFrame == nil {
 				return fmt.Errorf("AEC processing failed at frame %d", frameCount)
