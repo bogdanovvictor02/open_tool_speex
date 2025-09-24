@@ -23,7 +23,16 @@ func main() {
 		usePrevSpeaker = flag.Bool("prev-speaker", false, "Use previous speaker frame with current mic frame (delay compensation)")
 		nsFirst        = flag.Bool("ns-first", false, "Apply Noise Suppression before Echo Cancellation (default: AEC then NS)")
 		nsOnly         = flag.Bool("ns-only", false, "Apply only Noise Suppression (no echo cancellation)")
-		help           = flag.Bool("help", false, "Show help")
+
+		// Noise Suppression parameters
+		noiseSuppress = flag.Float64("noise-suppress", -15.0, "Noise suppression level in dB (more negative = more suppression)")
+		enableVAD     = flag.Bool("vad", false, "Enable Voice Activity Detection")
+		vadProbStart  = flag.Int("vad-prob-start", 80, "VAD probability threshold for speech start (0-100)")
+		vadProbCont   = flag.Int("vad-prob-continue", 65, "VAD probability threshold for speech continue (0-100)")
+		enableAGC     = flag.Bool("agc", false, "Enable Automatic Gain Control")
+		agcLevel      = flag.Float64("agc-level", 30000.0, "AGC target RMS level")
+
+		help = flag.Bool("help", false, "Show help")
 	)
 	flag.Parse()
 
@@ -39,20 +48,37 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Speex AEC Console Tool\n\n")
 		fmt.Fprintf(os.Stderr, "Usage: %s -mic <mic_file> [-speaker <speaker_file>] [-output <output_file>]\n\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "Parameters:\n")
-		fmt.Fprintf(os.Stderr, "  -mic           Microphone input file (raw A-law, 16kHz mono)\n")
-		fmt.Fprintf(os.Stderr, "  -speaker       Speaker reference file (raw A-law, 16kHz mono, required for AEC) \n")
-		fmt.Fprintf(os.Stderr, "  -output        Output file (default: output.alaw)\n")
-		fmt.Fprintf(os.Stderr, "  -prev-speaker  Use previous speaker frame for delay compensation\n")
-		fmt.Fprintf(os.Stderr, "  -ns-first      Apply Noise Suppression before Echo Cancellation\n")
-		fmt.Fprintf(os.Stderr, "  -ns-only       Apply only Noise Suppression (no echo cancellation)\n")
-		fmt.Fprintf(os.Stderr, "  -help          Show this help\n\n")
+		fmt.Fprintf(os.Stderr, "  -mic              Microphone input file (raw A-law, 16kHz mono)\n")
+		fmt.Fprintf(os.Stderr, "  -speaker          Speaker reference file (raw A-law, 16kHz mono, required for AEC) \n")
+		fmt.Fprintf(os.Stderr, "  -output           Output file (default: output.alaw)\n")
+		fmt.Fprintf(os.Stderr, "  -prev-speaker     Use previous speaker frame for delay compensation\n")
+		fmt.Fprintf(os.Stderr, "  -ns-first         Apply Noise Suppression before Echo Cancellation\n")
+		fmt.Fprintf(os.Stderr, "  -ns-only          Apply only Noise Suppression (no echo cancellation)\n\n")
+		fmt.Fprintf(os.Stderr, "Noise Suppression Settings:\n")
+		fmt.Fprintf(os.Stderr, "  -noise-suppress   Noise suppression level in dB (default: -15.0, more negative = more suppression)\n")
+		fmt.Fprintf(os.Stderr, "  -vad              Enable Voice Activity Detection\n")
+		fmt.Fprintf(os.Stderr, "  -vad-prob-start   VAD probability threshold for speech start 0-100 (default: 80)\n")
+		fmt.Fprintf(os.Stderr, "  -vad-prob-continue VAD probability threshold for speech continue 0-100 (default: 65)\n")
+		fmt.Fprintf(os.Stderr, "  -agc              Enable Automatic Gain Control\n")
+		fmt.Fprintf(os.Stderr, "  -agc-level        AGC target RMS level (default: 30000.0)\n\n")
+		fmt.Fprintf(os.Stderr, "  -help             Show this help\n\n")
 		fmt.Fprintf(os.Stderr, "Frame size: %d samples (20ms)\n", FRAME_SIZE)
 		fmt.Fprintf(os.Stderr, "Echo tail: %dms (%d samples)\n", ECHO_TAIL, FILTER_LEN)
 		fmt.Fprintf(os.Stderr, "Processing: Echo cancellation + Noise suppression\n")
 		os.Exit(1)
 	}
 
-	if err := processAEC(*micFile, *speakerFile, *outputFile, *usePrevSpeaker, *nsFirst, *nsOnly); err != nil {
+	// Create NS configuration
+	nsConfig := NSConfig{
+		NoiseSuppress: *noiseSuppress,
+		EnableVAD:     *enableVAD,
+		VADProbStart:  *vadProbStart,
+		VADProbCont:   *vadProbCont,
+		EnableAGC:     *enableAGC,
+		AGCLevel:      *agcLevel,
+	}
+
+	if err := processAEC(*micFile, *speakerFile, *outputFile, *usePrevSpeaker, *nsFirst, *nsOnly, nsConfig); err != nil {
 		log.Fatalf("Error: %v", err)
 	}
 
@@ -60,7 +86,7 @@ func main() {
 }
 
 // processAEC performs echo cancellation on input files
-func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst, nsOnly bool) error {
+func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst, nsOnly bool, nsConfig NSConfig) error {
 	// Open input files
 	micFile, err := os.Open(micPath)
 	if err != nil {
@@ -90,7 +116,7 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 
 	if nsOnly {
 		// NS-only mode: only need standalone preprocessor
-		separateNS, err = NewSpeexPreprocessor(FRAME_SIZE, SAMPLE_RATE)
+		separateNS, err = NewSpeexPreprocessorWithConfig(FRAME_SIZE, SAMPLE_RATE, nsConfig)
 		if err != nil {
 			return fmt.Errorf("failed to initialize NS: %w", err)
 		}
@@ -105,7 +131,7 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 
 		// For NS-first mode, we need separate preprocessor that's not tied to echo state
 		if nsFirst {
-			separateNS, err = NewSpeexPreprocessor(FRAME_SIZE, SAMPLE_RATE)
+			separateNS, err = NewSpeexPreprocessorWithConfig(FRAME_SIZE, SAMPLE_RATE, nsConfig)
 			if err != nil {
 				return fmt.Errorf("failed to initialize separate NS: %w", err)
 			}

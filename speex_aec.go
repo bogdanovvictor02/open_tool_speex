@@ -20,6 +20,16 @@ type SpeexAEC struct {
 	filterLen    int
 }
 
+// NSConfig holds noise suppression configuration parameters
+type NSConfig struct {
+	NoiseSuppress float64 // Noise suppression level in dB
+	EnableVAD     bool    // Enable Voice Activity Detection
+	VADProbStart  int     // VAD probability threshold for speech start (0-100)
+	VADProbCont   int     // VAD probability threshold for speech continue (0-100)
+	EnableAGC     bool    // Enable Automatic Gain Control
+	AGCLevel      float64 // AGC target RMS level
+}
+
 // NewSpeexAEC creates new Speex AEC instance
 // frameSize: samples per frame (320 for 20ms at 16kHz)
 // filterLen: echo tail length in samples (3200 for 200ms at 16kHz)
@@ -134,8 +144,21 @@ type SpeexPreprocessor struct {
 	frameSize    int
 }
 
-// NewSpeexPreprocessor creates new standalone Speex Preprocessor
+// NewSpeexPreprocessor creates new standalone Speex Preprocessor with default settings
 func NewSpeexPreprocessor(frameSize, sampleRate int) (*SpeexPreprocessor, error) {
+	defaultConfig := NSConfig{
+		NoiseSuppress: -15.0,
+		EnableVAD:     false,
+		VADProbStart:  80,
+		VADProbCont:   65,
+		EnableAGC:     false,
+		AGCLevel:      30000.0,
+	}
+	return NewSpeexPreprocessorWithConfig(frameSize, sampleRate, defaultConfig)
+}
+
+// NewSpeexPreprocessorWithConfig creates new standalone Speex Preprocessor with custom configuration
+func NewSpeexPreprocessorWithConfig(frameSize, sampleRate int, config NSConfig) (*SpeexPreprocessor, error) {
 	if frameSize <= 0 || sampleRate <= 0 {
 		return nil, errors.New("invalid parameters")
 	}
@@ -146,13 +169,43 @@ func NewSpeexPreprocessor(frameSize, sampleRate int) (*SpeexPreprocessor, error)
 		return nil, errors.New("failed to create preprocess state")
 	}
 
-	// Configure preprocessor for noise suppression only
+	// Configure preprocessor based on config
+	// Enable noise suppression
 	val := C.int(1)
 	C.speex_preprocess_ctl(preprocState, C.SPEEX_PREPROCESS_SET_DENOISE, unsafe.Pointer(&val))
 
-	// Disable AGC
-	val = C.int(0)
-	C.speex_preprocess_ctl(preprocState, C.SPEEX_PREPROCESS_SET_AGC, unsafe.Pointer(&val))
+	// Set noise suppression level
+	noiseLevel := C.float(config.NoiseSuppress)
+	C.speex_preprocess_ctl(preprocState, C.SPEEX_PREPROCESS_SET_NOISE_SUPPRESS, unsafe.Pointer(&noiseLevel))
+
+	// Configure VAD
+	vadVal := C.int(0)
+	if config.EnableVAD {
+		vadVal = C.int(1)
+	}
+	C.speex_preprocess_ctl(preprocState, C.SPEEX_PREPROCESS_SET_VAD, unsafe.Pointer(&vadVal))
+
+	if config.EnableVAD {
+		// Set VAD probability thresholds
+		probStart := C.int(config.VADProbStart)
+		C.speex_preprocess_ctl(preprocState, C.SPEEX_PREPROCESS_SET_PROB_START, unsafe.Pointer(&probStart))
+
+		probCont := C.int(config.VADProbCont)
+		C.speex_preprocess_ctl(preprocState, C.SPEEX_PREPROCESS_SET_PROB_CONTINUE, unsafe.Pointer(&probCont))
+	}
+
+	// Configure AGC
+	agcVal := C.int(0)
+	if config.EnableAGC {
+		agcVal = C.int(1)
+	}
+	C.speex_preprocess_ctl(preprocState, C.SPEEX_PREPROCESS_SET_AGC, unsafe.Pointer(&agcVal))
+
+	if config.EnableAGC {
+		// Set AGC level
+		agcLevel := C.float(config.AGCLevel)
+		C.speex_preprocess_ctl(preprocState, C.SPEEX_PREPROCESS_SET_AGC_LEVEL, unsafe.Pointer(&agcLevel))
+	}
 
 	return &SpeexPreprocessor{
 		preprocState: preprocState,
