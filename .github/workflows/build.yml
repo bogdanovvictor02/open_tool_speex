@@ -12,12 +12,13 @@ jobs:
   build-linux:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Set up Go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
-        go-version: 1.21
+        go-version: '1.22'
+        cache: true
     
     - name: Install SpeexDSP
       run: |
@@ -33,7 +34,7 @@ jobs:
         echo "Linux binary built successfully"
     
     - name: Upload Linux artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: speex-linux
         path: speex-linux
@@ -41,12 +42,13 @@ jobs:
   build-macos:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Set up Go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
-        go-version: 1.21
+        go-version: '1.22'
+        cache: true
     
     - name: Install SpeexDSP
       run: |
@@ -61,7 +63,7 @@ jobs:
         echo "macOS binary built successfully"
     
     - name: Upload macOS artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: speex-macos
         path: speex-macos
@@ -69,12 +71,12 @@ jobs:
   build-windows:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Set up Go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
-        go-version: 1.21
+        go-version: '1.22'
     
     - name: Install cross-compilation tools
       run: |
@@ -112,7 +114,7 @@ jobs:
         echo "Windows binary built successfully"
     
     - name: Upload Windows artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: speex-windows
         path: speex.exe
@@ -123,15 +125,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Download all artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts/
     
     - name: Create Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: |
-          speex-linux/speex-linux
-          speex-macos/speex-macos
-          speex-windows/speex.exe
+          artifacts/speex-linux/speex-linux
+          artifacts/speex-macos/speex-macos
+          artifacts/speex-windows/speex.exe
         body: |
           ## Speex AEC Console Tool Release
           
