@@ -90,6 +90,25 @@ func (aec *SpeexAEC) ProcessFrame(micFrame, speakerFrame []int16) []int16 {
 	return output
 }
 
+// ProcessFrameEchoOnly performs only echo cancellation (no noise suppression)
+func (aec *SpeexAEC) ProcessFrameEchoOnly(micFrame, speakerFrame []int16) []int16 {
+	if len(micFrame) != aec.frameSize || len(speakerFrame) != aec.frameSize {
+		return nil
+	}
+
+	output := make([]int16, aec.frameSize)
+
+	// Convert Go slices to C arrays
+	micPtr := (*C.spx_int16_t)(unsafe.Pointer(&micFrame[0]))
+	speakerPtr := (*C.spx_int16_t)(unsafe.Pointer(&speakerFrame[0]))
+	outPtr := (*C.spx_int16_t)(unsafe.Pointer(&output[0]))
+
+	// Perform only echo cancellation (skip noise suppression)
+	C.speex_echo_cancellation(aec.echoState, micPtr, speakerPtr, outPtr)
+
+	return output
+}
+
 // Reset resets the AEC state
 func (aec *SpeexAEC) Reset() {
 	if aec.echoState != nil {
@@ -106,5 +125,63 @@ func (aec *SpeexAEC) Destroy() {
 	if aec.echoState != nil {
 		C.speex_echo_state_destroy(aec.echoState)
 		aec.echoState = nil
+	}
+}
+
+// SpeexPreprocessor wraps standalone Speex Preprocessor (without echo state)
+type SpeexPreprocessor struct {
+	preprocState *C.SpeexPreprocessState
+	frameSize    int
+}
+
+// NewSpeexPreprocessor creates new standalone Speex Preprocessor
+func NewSpeexPreprocessor(frameSize, sampleRate int) (*SpeexPreprocessor, error) {
+	if frameSize <= 0 || sampleRate <= 0 {
+		return nil, errors.New("invalid parameters")
+	}
+
+	// Create preprocessor state
+	preprocState := C.speex_preprocess_state_init(C.int(frameSize), C.int(sampleRate))
+	if preprocState == nil {
+		return nil, errors.New("failed to create preprocess state")
+	}
+
+	// Configure preprocessor for noise suppression only
+	val := C.int(1)
+	C.speex_preprocess_ctl(preprocState, C.SPEEX_PREPROCESS_SET_DENOISE, unsafe.Pointer(&val))
+
+	// Disable AGC
+	val = C.int(0)
+	C.speex_preprocess_ctl(preprocState, C.SPEEX_PREPROCESS_SET_AGC, unsafe.Pointer(&val))
+
+	return &SpeexPreprocessor{
+		preprocState: preprocState,
+		frameSize:    frameSize,
+	}, nil
+}
+
+// ProcessFrame applies noise suppression to input frame
+func (ns *SpeexPreprocessor) ProcessFrame(inputFrame []int16) []int16 {
+	if len(inputFrame) != ns.frameSize {
+		return nil
+	}
+
+	output := make([]int16, ns.frameSize)
+	copy(output, inputFrame)
+
+	// Convert Go slice to C array
+	outPtr := (*C.spx_int16_t)(unsafe.Pointer(&output[0]))
+
+	// Apply noise suppression
+	C.speex_preprocess_run(ns.preprocState, outPtr)
+
+	return output
+}
+
+// Destroy cleans up preprocessor resources
+func (ns *SpeexPreprocessor) Destroy() {
+	if ns.preprocState != nil {
+		C.speex_preprocess_state_destroy(ns.preprocState)
+		ns.preprocState = nil
 	}
 }

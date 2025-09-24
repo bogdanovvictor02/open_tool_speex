@@ -39,7 +39,41 @@ go build
 - `-mic` - входной файл с микрофона (raw A-law, 16 кГц моно)
 - `-speaker` - референсный файл с динамика (raw A-law, 16 кГц моно) 
 - `-output` - выходной файл (по умолчанию: output.alaw)
+- `-prev-speaker` - использовать предыдущий фрейм speaker для компенсации задержки
+- `-ns-first` - применить подавление шума перед эхоподавлением (по умолчанию: AEC → NS)
 - `-help` - показать справку
+
+### Компенсация задержки
+
+Опция `-prev-speaker` использует предыдущий фрейм speaker с текущим фреймом microphone. Это полезно для компенсации задержки обработки в системах реального времени:
+
+```bash
+# Обычный режим: mic[n] + speaker[n] -> output[n]
+./speex -mic mic.alaw -speaker spk.alaw -output normal.alaw
+
+# Режим с компенсацией: mic[n] + speaker[n-1] -> output[n]  
+./speex -mic mic.alaw -speaker spk.alaw -output delayed.alaw -prev-speaker
+```
+
+### Порядок обработки
+
+По умолчанию применяется **AEC → NS** (эхоподавление, затем подавление шума). Опция `-ns-first` меняет порядок на **NS → AEC**:
+
+```bash
+# Обычный порядок: AEC → NS (по умолчанию)
+./speex -mic mic.alaw -speaker spk.alaw -output aec_first.alaw
+
+# Обратный порядок: NS → AEC
+./speex -mic mic.alaw -speaker spk.alaw -output ns_first.alaw -ns-first
+
+# Комбинация: NS → AEC + компенсация задержки  
+./speex -mic mic.alaw -speaker spk.alaw -output combined.alaw -ns-first -prev-speaker
+```
+
+**Когда использовать NS-first:**
+- Высокий уровень фонового шума в микрофоне
+- Необходимость улучшить качество сигнала перед эхоподавлением
+- Экспериментальные настройки для конкретных сценариев
 
 ## Формат файлов
 
