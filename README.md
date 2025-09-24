@@ -1,5 +1,7 @@
 # Speex AEC Console Tool
 
+[![Cross-platform Build](https://github.com/YOUR_USERNAME/YOUR_REPO/actions/workflows/build.yml/badge.svg)](https://github.com/YOUR_USERNAME/YOUR_REPO/actions/workflows/build.yml)
+
 Консольное приложение для эхоподавления (AEC) с использованием библиотеки SpeexDSP.
 
 ## Возможности
@@ -24,9 +26,34 @@ brew install speexdsp pkg-config
 
 ## Сборка
 
+### Linux/macOS
 ```bash
 go build
 ```
+
+### Windows
+
+Есть несколько способов собрать для Windows:
+
+#### Способ 1: Кросс-компиляция с macOS/Linux
+```bash
+# Установить MinGW (на macOS)
+brew install mingw-w64
+
+# Собрать для Windows
+./build-windows.sh
+```
+
+#### Способ 2: Docker кросс-компиляция
+```bash
+./build-docker-windows.sh
+```
+
+#### Способ 3: Native сборка на Windows
+См. подробные инструкции в [build-windows-native.md](build-windows-native.md)
+
+#### Способ 4: GitHub Actions
+Автоматическая сборка для всех платформ при push в репозиторий.
 
 ## Использование
 

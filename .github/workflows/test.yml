@@ -1,0 +1,57 @@
+name: Quick Test Build
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  quick-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: 1.21
+    
+    - name: Install SpeexDSP
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libspeexdsp-dev pkg-config
+    
+    - name: Run go mod tidy
+      run: go mod tidy
+    
+    - name: Check go fmt
+      run: |
+        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+          echo "Please run 'go fmt ./...'"
+          gofmt -s -l .
+          exit 1
+        fi
+    
+    - name: Run go vet
+      run: go vet ./...
+    
+    - name: Build
+      run: go build -o speex-test
+    
+    - name: Test help command
+      run: |
+        ./speex-test -help || true
+        echo "Basic build test passed"
+    
+    - name: Test bypass mode
+      run: |
+        # Create test file
+        echo -n -e '\xD5\xD5\xD5\xD5' > test.alaw
+        ./speex-test -mic test.alaw -output test-out.alaw -bypass
+        if [ -f test-out.alaw ]; then
+          echo "Bypass test passed"
+        else
+          echo "Bypass test failed"
+          exit 1
+        fi
