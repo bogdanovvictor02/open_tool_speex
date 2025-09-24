@@ -8,11 +8,11 @@ import (
 	"os"
 )
 
+// Default processing parameters (can be overridden by CLI flags)
 const (
-	SAMPLE_RATE = 16000
-	FRAME_SIZE  = 320                            // 20ms at 16kHz
-	ECHO_TAIL   = 200                            // 200ms echo tail in milliseconds
-	FILTER_LEN  = SAMPLE_RATE * ECHO_TAIL / 1000 // Convert to samples
+	defaultSampleRate = 16000
+	defaultFrameSize  = 320 // 20ms at 16kHz
+	defaultEchoTailMs = 200 // 200ms echo tail in milliseconds
 )
 
 func main() {
@@ -26,6 +26,13 @@ func main() {
 		aecOnly        = flag.Bool("aec-only", false, "Apply only Echo Cancellation (no noise suppression)")
 		bypass         = flag.Bool("bypass", false, "Bypass all processing (copy input to output for testing)")
 
+		// Processing parameters (override defaults)
+		sampleRate  = flag.Int("sample-rate", defaultSampleRate, "Sample rate in Hz (e.g., 16000)")
+		frameSize   = flag.Int("frame-size", defaultFrameSize, "Frame size in samples (e.g., 320 for 20ms @16k)")
+		echoTailMs  = flag.Int("echo-tail", defaultEchoTailMs, "Echo tail length in milliseconds")
+		filterLenIn = flag.Int("filter-len", 0, "Echo filter length in samples (override echo-tail if > 0)")
+		progressSec = flag.Float64("progress-sec", 16.0, "Progress log interval in seconds (0 disables)")
+
 		// Noise Suppression parameters
 		noiseSuppress = flag.Float64("noise-suppress", -15.0, "Noise suppression level in dB (more negative = more suppression)")
 		enableVAD     = flag.Bool("vad", false, "Enable Voice Activity Detection")
@@ -37,6 +44,12 @@ func main() {
 		help = flag.Bool("help", false, "Show help")
 	)
 	flag.Parse()
+
+	// Derive filter length if not explicitly set
+	effectiveFilterLen := *filterLenIn
+	if effectiveFilterLen <= 0 {
+		effectiveFilterLen = *sampleRate * *echoTailMs / 1000
+	}
 
 	// Validate mutually exclusive options
 	exclusiveCount := 0
@@ -73,6 +86,12 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  -ns-only          Apply only Noise Suppression (no echo cancellation)\n")
 		fmt.Fprintf(os.Stderr, "  -aec-only         Apply only Echo Cancellation (no noise suppression)\n")
 		fmt.Fprintf(os.Stderr, "  -bypass           Bypass all processing (copy input to output for testing)\n\n")
+		fmt.Fprintf(os.Stderr, "Processing Parameters:\n")
+		fmt.Fprintf(os.Stderr, "  -sample-rate      Sample rate in Hz (default: %d)\n", defaultSampleRate)
+		fmt.Fprintf(os.Stderr, "  -frame-size       Frame size in samples (default: %d)\n", defaultFrameSize)
+		fmt.Fprintf(os.Stderr, "  -echo-tail        Echo tail length in ms (default: %d)\n", defaultEchoTailMs)
+		fmt.Fprintf(os.Stderr, "  -filter-len       Echo filter length in samples (override echo-tail if > 0)\n")
+		fmt.Fprintf(os.Stderr, "  -progress-sec     Progress log interval in seconds (default: %.1f; 0 disables)\n\n", *progressSec)
 		fmt.Fprintf(os.Stderr, "Noise Suppression Settings:\n")
 		fmt.Fprintf(os.Stderr, "  -noise-suppress   Noise suppression level in dB (default: -15.0, more negative = more suppression)\n")
 		fmt.Fprintf(os.Stderr, "  -vad              Enable Voice Activity Detection\n")
@@ -81,8 +100,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  -agc              Enable Automatic Gain Control\n")
 		fmt.Fprintf(os.Stderr, "  -agc-level        AGC target RMS level (default: 30000.0)\n\n")
 		fmt.Fprintf(os.Stderr, "  -help             Show this help\n\n")
-		fmt.Fprintf(os.Stderr, "Frame size: %d samples (20ms)\n", FRAME_SIZE)
-		fmt.Fprintf(os.Stderr, "Echo tail: %dms (%d samples)\n", ECHO_TAIL, FILTER_LEN)
+		fmt.Fprintf(os.Stderr, "Frame size: %d samples (%.1fms)\n", *frameSize, float64(*frameSize)/float64(*sampleRate)*1000)
+		fmt.Fprintf(os.Stderr, "Echo tail: %dms (%d samples)\n", *echoTailMs, effectiveFilterLen)
 		fmt.Fprintf(os.Stderr, "Processing: Echo cancellation + Noise suppression\n")
 		os.Exit(1)
 	}
@@ -97,7 +116,7 @@ func main() {
 		AGCLevel:      *agcLevel,
 	}
 
-	if err := processAEC(*micFile, *speakerFile, *outputFile, *usePrevSpeaker, *nsFirst, *nsOnly, *aecOnly, *bypass, nsConfig); err != nil {
+	if err := processAEC(*micFile, *speakerFile, *outputFile, *usePrevSpeaker, *nsFirst, *nsOnly, *aecOnly, *bypass, nsConfig, *sampleRate, *frameSize, effectiveFilterLen, *progressSec); err != nil {
 		log.Fatalf("Error: %v", err)
 	}
 
@@ -105,7 +124,7 @@ func main() {
 }
 
 // processAEC performs echo cancellation on input files
-func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst, nsOnly, aecOnly, bypass bool, nsConfig NSConfig) error {
+func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst, nsOnly, aecOnly, bypass bool, nsConfig NSConfig, sampleRate, frameSize, filterLen int, progressSec float64) error {
 	// Open input files
 	micFile, err := os.Open(micPath)
 	if err != nil {
@@ -138,14 +157,14 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 		// Skip initialization
 	} else if nsOnly {
 		// NS-only mode: only need standalone preprocessor
-		separateNS, err = NewSpeexPreprocessorWithConfig(FRAME_SIZE, SAMPLE_RATE, nsConfig)
+		separateNS, err = NewSpeexPreprocessorWithConfig(frameSize, sampleRate, nsConfig)
 		if err != nil {
 			return fmt.Errorf("failed to initialize NS: %w", err)
 		}
 		defer separateNS.Destroy()
 	} else {
 		// AEC modes (including aec-only): need AEC
-		aec, err = NewSpeexAEC(FRAME_SIZE, FILTER_LEN, SAMPLE_RATE)
+		aec, err = NewSpeexAEC(frameSize, filterLen, sampleRate)
 		if err != nil {
 			return fmt.Errorf("failed to initialize AEC: %w", err)
 		}
@@ -154,7 +173,7 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 		// For NS-first mode, we need separate preprocessor that's not tied to echo state
 		// (AEC-only mode doesn't need separate NS)
 		if nsFirst {
-			separateNS, err = NewSpeexPreprocessorWithConfig(FRAME_SIZE, SAMPLE_RATE, nsConfig)
+			separateNS, err = NewSpeexPreprocessorWithConfig(frameSize, sampleRate, nsConfig)
 			if err != nil {
 				return fmt.Errorf("failed to initialize separate NS: %w", err)
 			}
@@ -163,15 +182,15 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 	}
 
 	// Processing buffers
-	micAlawFrame := make([]byte, FRAME_SIZE)
-	speakerAlawFrame := make([]byte, FRAME_SIZE)
-	micPcmFrame := make([]int16, FRAME_SIZE)
-	speakerPcmFrame := make([]int16, FRAME_SIZE)
+	micAlawFrame := make([]byte, frameSize)
+	speakerAlawFrame := make([]byte, frameSize)
+	micPcmFrame := make([]int16, frameSize)
+	speakerPcmFrame := make([]int16, frameSize)
 
 	// Previous speaker frame for delay compensation
 	var prevSpeakerPcmFrame []int16
 	if usePrevSpeaker {
-		prevSpeakerPcmFrame = make([]int16, FRAME_SIZE)
+		prevSpeakerPcmFrame = make([]int16, frameSize)
 		// Initialize with silence
 		for i := range prevSpeakerPcmFrame {
 			prevSpeakerPcmFrame[i] = 0
@@ -199,11 +218,11 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 
 	if len(modeStr) > 0 {
 		fmt.Printf("Processing audio frames (size: %d samples, %.1fms) with %s...\n",
-			FRAME_SIZE, float64(FRAME_SIZE)/float64(SAMPLE_RATE)*1000,
+			frameSize, float64(frameSize)/float64(sampleRate)*1000,
 			fmt.Sprintf("%v", modeStr))
 	} else {
 		fmt.Printf("Processing audio frames (size: %d samples, %.1fms)...\n",
-			FRAME_SIZE, float64(FRAME_SIZE)/float64(SAMPLE_RATE)*1000)
+			frameSize, float64(frameSize)/float64(sampleRate)*1000)
 	}
 
 	// Main processing loop
@@ -230,15 +249,15 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 		}
 
 		// Handle partial frames at end of file
-		if micBytesRead < FRAME_SIZE {
+		if micBytesRead < frameSize {
 			// Zero-pad partial mic frames
-			for i := micBytesRead; i < FRAME_SIZE; i++ {
+			for i := micBytesRead; i < frameSize; i++ {
 				micAlawFrame[i] = 0xD5 // A-law silence
 			}
 		}
-		if !nsOnly && !bypass && speakerBytesRead < FRAME_SIZE {
+		if !nsOnly && !bypass && speakerBytesRead < frameSize {
 			// Zero-pad partial speaker frames (only for AEC modes)
-			for i := speakerBytesRead; i < FRAME_SIZE; i++ {
+			for i := speakerBytesRead; i < frameSize; i++ {
 				speakerAlawFrame[i] = 0xD5 // A-law silence
 			}
 		}
@@ -263,7 +282,7 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 		var outputAlawFrame []byte
 		if bypass {
 			// Mode 0: Bypass (no processing, copy A-law input directly to output)
-			outputAlawFrame = make([]byte, FRAME_SIZE)
+			outputAlawFrame = make([]byte, frameSize)
 			copy(outputAlawFrame, micAlawFrame)
 		} else {
 			// All other modes need PCM16 processing
@@ -301,7 +320,7 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 			}
 
 			// Convert PCM16 back to A-law for non-bypass modes
-			outputAlawFrame = make([]byte, FRAME_SIZE)
+			outputAlawFrame = make([]byte, frameSize)
 			PCM16BufferToAlaw(outputPcmFrame, outputAlawFrame)
 		}
 
@@ -316,13 +335,20 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 		}
 
 		frameCount++
-		if frameCount%800 == 0 { // Progress every ~16 seconds at 16kHz
-			duration := float64(frameCount*FRAME_SIZE) / float64(SAMPLE_RATE)
-			fmt.Printf("Processed %.1f seconds (%d frames)\n", duration, frameCount)
+		// Dynamic progress interval based on flags
+		if progressSec > 0 {
+			framesPerInterval := int(float64(sampleRate)/float64(frameSize)*progressSec + 0.5)
+			if framesPerInterval <= 0 {
+				framesPerInterval = 1
+			}
+			if frameCount%framesPerInterval == 0 {
+				duration := float64(frameCount*frameSize) / float64(sampleRate)
+				fmt.Printf("Processed %.1f seconds (%d frames)\n", duration, frameCount)
+			}
 		}
 	}
 
-	duration := float64(frameCount*FRAME_SIZE) / float64(SAMPLE_RATE)
+	duration := float64(frameCount*frameSize) / float64(sampleRate)
 	fmt.Printf("Total processed: %.1f seconds (%d frames)\n", duration, frameCount)
 
 	return nil
