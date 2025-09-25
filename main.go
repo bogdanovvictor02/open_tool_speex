@@ -25,6 +25,7 @@ func main() {
 		nsOnly         = flag.Bool("ns-only", false, "Apply only Noise Suppression (no echo cancellation)")
 		aecOnly        = flag.Bool("aec-only", false, "Apply only Echo Cancellation (no noise suppression)")
 		bypass         = flag.Bool("bypass", false, "Bypass all processing (copy input to output for testing)")
+		testAlaw       = flag.Bool("test-alaw", false, "Test A-law encoding/decoding (A-law -> PCM -> A-law)")
 
 		// Processing parameters (override defaults)
 		sampleRate  = flag.Int("sample-rate", defaultSampleRate, "Sample rate in Hz (e.g., 16000)")
@@ -67,13 +68,17 @@ func main() {
 		exclusiveCount++ // bypass is also exclusive
 	}
 
+	if *testAlaw {
+		exclusiveCount++ // test-alaw is also exclusive
+	}
+
 	if exclusiveCount > 1 {
-		fmt.Fprintf(os.Stderr, "Error: -ns-first, -ns-only, -aec-only, and -bypass are mutually exclusive\n")
+		fmt.Fprintf(os.Stderr, "Error: -ns-first, -ns-only, -aec-only, -bypass, and -test-alaw are mutually exclusive\n")
 		os.Exit(1)
 	}
 
-	// Speaker file is required for all modes except NS-only and bypass
-	speakerRequired := !*nsOnly && !*bypass
+	// Speaker file is required for all modes except NS-only, bypass, and test-alaw
+	speakerRequired := !*nsOnly && !*bypass && !*testAlaw
 	if *help || *micFile == "" || (speakerRequired && *speakerFile == "") {
 		fmt.Fprintf(os.Stderr, "Speex AEC Console Tool\n\n")
 		fmt.Fprintf(os.Stderr, "Usage: %s -mic <mic_file> [-speaker <speaker_file>] [-output <output_file>]\n\n", os.Args[0])
@@ -85,7 +90,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  -ns-first         Apply Noise Suppression before Echo Cancellation\n")
 		fmt.Fprintf(os.Stderr, "  -ns-only          Apply only Noise Suppression (no echo cancellation)\n")
 		fmt.Fprintf(os.Stderr, "  -aec-only         Apply only Echo Cancellation (no noise suppression)\n")
-		fmt.Fprintf(os.Stderr, "  -bypass           Bypass all processing (copy input to output for testing)\n\n")
+		fmt.Fprintf(os.Stderr, "  -bypass           Bypass all processing (copy input to output for testing)\n")
+		fmt.Fprintf(os.Stderr, "  -test-alaw        Test A-law encoding/decoding (A-law -> PCM -> A-law)\n\n")
 		fmt.Fprintf(os.Stderr, "Processing Parameters:\n")
 		fmt.Fprintf(os.Stderr, "  -sample-rate      Sample rate in Hz (default: %d)\n", defaultSampleRate)
 		fmt.Fprintf(os.Stderr, "  -frame-size       Frame size in samples (default: %d)\n", defaultFrameSize)
@@ -116,7 +122,7 @@ func main() {
 		AGCLevel:      *agcLevel,
 	}
 
-	if err := processAEC(*micFile, *speakerFile, *outputFile, *usePrevSpeaker, *nsFirst, *nsOnly, *aecOnly, *bypass, nsConfig, *sampleRate, *frameSize, effectiveFilterLen, *progressSec); err != nil {
+	if err := processAEC(*micFile, *speakerFile, *outputFile, *usePrevSpeaker, *nsFirst, *nsOnly, *aecOnly, *bypass, *testAlaw, nsConfig, *sampleRate, *frameSize, effectiveFilterLen, *progressSec); err != nil {
 		log.Fatalf("Error: %v", err)
 	}
 
@@ -124,7 +130,7 @@ func main() {
 }
 
 // processAEC performs echo cancellation on input files
-func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst, nsOnly, aecOnly, bypass bool, nsConfig NSConfig, sampleRate, frameSize, filterLen int, progressSec float64) error {
+func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst, nsOnly, aecOnly, bypass, testAlaw bool, nsConfig NSConfig, sampleRate, frameSize, filterLen int, progressSec float64) error {
 	// Open input files
 	micFile, err := os.Open(micPath)
 	if err != nil {
@@ -133,7 +139,7 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 	defer micFile.Close()
 
 	var speakerFile *os.File
-	if !nsOnly && !bypass { // Speaker file needed for AEC modes (not for NS-only or bypass)
+	if !nsOnly && !bypass && !testAlaw { // Speaker file needed for AEC modes (not for NS-only, bypass, or test-alaw)
 		speakerFile, err = os.Open(speakerPath)
 		if err != nil {
 			return fmt.Errorf("failed to open speaker file: %w", err)
@@ -154,6 +160,9 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 
 	if bypass {
 		// Bypass mode: no processing needed
+		// Skip initialization
+	} else if testAlaw {
+		// Test A-law mode: no processing needed, just encoding/decoding
 		// Skip initialization
 	} else if nsOnly {
 		// NS-only mode: only need standalone preprocessor
@@ -203,6 +212,8 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 	var modeStr []string
 	if bypass {
 		modeStr = append(modeStr, "BYPASS")
+	} else if testAlaw {
+		modeStr = append(modeStr, "A-LAW-TEST")
 	} else if nsOnly {
 		modeStr = append(modeStr, "NS-only")
 	} else if aecOnly {
@@ -212,7 +223,7 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 	} else {
 		modeStr = append(modeStr, "AEC-first")
 	}
-	if usePrevSpeaker && !nsOnly && !bypass {
+	if usePrevSpeaker && !nsOnly && !bypass && !testAlaw {
 		modeStr = append(modeStr, "delay compensation")
 	}
 
@@ -223,6 +234,11 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 	} else {
 		fmt.Printf("Processing audio frames (size: %d samples, %.1fms)...\n",
 			frameSize, float64(frameSize)/float64(sampleRate)*1000)
+	}
+
+	// Additional info for A-law test mode
+	if testAlaw {
+		fmt.Printf("A-law test mode: Testing A-law -> PCM -> A-law conversion chain\n")
 	}
 
 	// Main processing loop
@@ -238,7 +254,7 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 
 		// Read speaker frame (only for AEC modes)
 		var speakerBytesRead int
-		if !nsOnly && !bypass {
+		if !nsOnly && !bypass && !testAlaw {
 			speakerBytesRead, err = io.ReadFull(speakerFile, speakerAlawFrame)
 			if err == io.EOF {
 				break
@@ -255,7 +271,7 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 				micAlawFrame[i] = 0xD5 // A-law silence
 			}
 		}
-		if !nsOnly && !bypass && speakerBytesRead < frameSize {
+		if !nsOnly && !bypass && !testAlaw && speakerBytesRead < frameSize {
 			// Zero-pad partial speaker frames (only for AEC modes)
 			for i := speakerBytesRead; i < frameSize; i++ {
 				speakerAlawFrame[i] = 0xD5 // A-law silence
@@ -264,8 +280,13 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 
 		// Convert A-law to PCM16
 		AlawBufferToPCM16(micAlawFrame, micPcmFrame)
-		if !nsOnly && !bypass {
+		if !nsOnly && !bypass && !testAlaw {
 			AlawBufferToPCM16(speakerAlawFrame, speakerPcmFrame)
+		}
+
+		// Log A-law test conversion steps
+		if testAlaw && frameCount == 0 {
+			fmt.Printf("A-law test mode: Step 1 - A-law -> PCM conversion completed\n")
 		}
 
 		// Choose which speaker frame to use for AEC
@@ -284,6 +305,17 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 			// Mode 0: Bypass (no processing, copy A-law input directly to output)
 			outputAlawFrame = make([]byte, frameSize)
 			copy(outputAlawFrame, micAlawFrame)
+		} else if testAlaw {
+			// Mode 5: Test A-law encoding/decoding (A-law -> PCM -> A-law)
+			// Step 1: A-law -> PCM (already done above with AlawBufferToPCM16)
+			// Step 2: PCM -> A-law (test encoding)
+			outputAlawFrame = make([]byte, frameSize)
+			PCM16BufferToAlaw(micPcmFrame, outputAlawFrame)
+
+			// Log A-law test conversion steps
+			if frameCount == 0 {
+				fmt.Printf("A-law test mode: Step 2 - PCM -> A-law conversion completed\n")
+			}
 		} else {
 			// All other modes need PCM16 processing
 			var outputPcmFrame []int16
@@ -325,7 +357,7 @@ func processAEC(micPath, speakerPath, outputPath string, usePrevSpeaker, nsFirst
 		}
 
 		// Update previous speaker frame for next iteration
-		if usePrevSpeaker && !bypass {
+		if usePrevSpeaker && !bypass && !testAlaw {
 			copy(prevSpeakerPcmFrame, speakerPcmFrame)
 		}
 
