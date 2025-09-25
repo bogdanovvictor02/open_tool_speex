@@ -1,0 +1,39 @@
+version: '3'
+
+# CI-specific tasks that don't require external dependencies
+tasks:
+  ci-test:
+    desc: "Run CI tests (no external dependencies)"
+    dir: .
+    cmds:
+      - go test -v -race ./...
+
+  ci-build:
+    desc: "CI build for current platform"
+    dir: .
+    cmds:
+      - go build -o build/open_tool_speex ./cmd/open_tool_speex
+
+  ci-lint:
+    desc: "CI linting (basic checks only)"
+    dir: .
+    cmds:
+      - go vet ./...
+      - go fmt -d .
+      - |
+        if [ -n "$(go fmt -d .)" ]; then
+          echo "Code is not formatted. Run 'go fmt ./...' to fix."
+          exit 1
+        fi
+
+  ci-deps:
+    desc: "Check dependencies"
+    dir: .
+    cmds:
+      - go mod verify
+      - go mod tidy
+      - |
+        if [ -n "$(git diff go.mod go.sum)" ]; then
+          echo "Dependencies are not up to date. Run 'go mod tidy' to fix."
+          exit 1
+        fi

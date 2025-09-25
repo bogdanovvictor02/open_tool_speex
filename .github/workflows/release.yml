@@ -1,0 +1,147 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v1.0.0)'
+        required: true
+        type: string
+
+env:
+  GO_VERSION: '1.22'
+  BINARY_NAME: open_tool_speex
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            artifact_name: open_tool_speex-linux
+          - os: macos-latest
+            platform: macos
+            artifact_name: open_tool_speex-macos
+          - os: windows-latest
+            platform: windows
+            artifact_name: open_tool_speex.exe
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Install dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libspeexdsp-dev pkg-config
+
+    - name: Install dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install speexdsp pkg-config
+
+    - name: Install Task
+      uses: arduino/setup-task@v1
+      with:
+        version: 3.x
+
+    - name: Build all platforms
+      run: task build-all
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: build/${{ env.BINARY_NAME }}*
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: release
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Install Task
+      uses: arduino/setup-task@v1
+      with:
+        version: 3.x
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+
+    - name: Prepare release assets
+      run: |
+        mkdir -p release
+        find . -name "open_tool_speex*" -type f -exec cp {} release/ \;
+        ls -la release/
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        if [ "${{ github.event_name }}" = "push" ]; then
+          TAG=${{ github.ref_name }}
+        else
+          TAG=${{ github.event.inputs.tag }}
+        fi
+        
+        echo "tag=$TAG" >> $GITHUB_OUTPUT
+        
+        # Generate changelog from git commits
+        echo "## Changes in $TAG" > CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        git log --pretty=format:"- %s" $(git describe --tags --abbrev=0 HEAD^)..HEAD >> CHANGELOG.md || echo "- Initial release" >> CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        echo "## Installation" >> CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        echo "Download the appropriate binary for your platform:" >> CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        echo "- **Linux**: \`open_tool_speex-linux\`" >> CHANGELOG.md
+        echo "- **macOS**: \`open_tool_speex-macos\`" >> CHANGELOG.md
+        echo "- **Windows**: \`open_tool_speex.exe\`" >> CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        echo "## Usage" >> CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        echo "\`\`\`bash" >> CHANGELOG.md
+        echo "./open_tool_speex -mic input.alaw -speaker reference.alaw -output output.alaw" >> CHANGELOG.md
+        echo "\`\`\`" >> CHANGELOG.md
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.changelog.outputs.tag }}
+        name: Release ${{ steps.changelog.outputs.tag }}
+        body_path: CHANGELOG.md
+        files: |
+          release/open_tool_speex-linux
+          release/open_tool_speex-macos
+          release/open_tool_speex.exe
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

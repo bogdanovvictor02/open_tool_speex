@@ -1,4 +1,4 @@
-package main
+package audio
 
 // A-law encoding/decoding for 16 kHz mono audio
 // ITU-T G.711 A-law companding

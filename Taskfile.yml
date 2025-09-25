@@ -1,0 +1,192 @@
+version: '3'
+
+vars:
+  BINARY_NAME: open_tool_speex
+  BUILD_DIR: build
+  TEST_DIR: testdata
+  COVERAGE_FILE: coverage.out
+  COVERAGE_HTML: coverage.html
+
+tasks:
+  default:
+    desc: "Run tests and build"
+    deps: [test, build]
+
+  build:
+    desc: "Build the binary"
+    dir: .
+    cmds:
+      - mkdir -p build
+      - go build -a -installsuffix cgo -ldflags "-s -w" -o build/open_tool_speex ./cmd/open_tool_speex
+    sources:
+      - "cmd/**/*.go"
+      - "internal/**/*.go"
+      - "pkg/**/*.go"
+      - "go.mod"
+      - "go.sum"
+
+  build-all:
+    desc: "Build for all platforms"
+    deps: [build-linux, build-macos, build-windows]
+
+  build-linux:
+    desc: "Build for Linux"
+    dir: .
+    cmds:
+      - mkdir -p build
+      - GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags "-s -w" -o build/open_tool_speex-linux ./cmd/open_tool_speex
+
+  build-macos:
+    desc: "Build for macOS"
+    dir: .
+    cmds:
+      - mkdir -p build
+      - GOOS=darwin GOARCH=amd64 go build -a -installsuffix cgo -ldflags "-s -w" -o build/open_tool_speex-macos ./cmd/open_tool_speex
+
+  build-windows:
+    desc: "Build for Windows"
+    dir: .
+    cmds:
+      - mkdir -p build
+      - GOOS=windows GOARCH=amd64 go build -a -installsuffix cgo -ldflags "-s -w" -o build/open_tool_speex.exe ./cmd/open_tool_speex
+
+  test:
+    desc: "Run tests"
+    dir: .
+    cmds:
+      - go test -v ./...
+
+  test-coverage:
+    desc: "Run tests with coverage"
+    dir: .
+    cmds:
+      - go test -v -coverprofile=coverage.out ./...
+      - go tool cover -html=coverage.out -o coverage.html
+
+  test-integration:
+    desc: "Run integration tests"
+    deps: [build, testdata]
+    dir: .
+    cmds:
+      - |
+        if [ -f build/open_tool_speex ]; then
+          build/open_tool_speex -mic testdata/sine_1khz.alaw -speaker testdata/sine_440hz.alaw -output testdata/output.alaw -bypass
+          echo "Integration test completed successfully"
+        else
+          echo "Binary not found, run 'task build' first"
+          exit 1
+        fi
+
+  benchmark:
+    desc: "Run benchmarks"
+    dir: .
+    cmds:
+      - go test -bench=. ./...
+
+  fmt:
+    desc: "Format code"
+    dir: .
+    cmds:
+      - go fmt ./...
+
+  lint:
+    desc: "Lint code"
+    dir: .
+    cmds:
+      - |
+        if command -v golangci-lint >/dev/null 2>&1; then
+          golangci-lint run
+        else
+          echo "golangci-lint not found, installing..."
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          golangci-lint run
+        fi
+
+  vet:
+    desc: "Run go vet"
+    dir: .
+    cmds:
+      - go vet ./...
+
+  deps:
+    desc: "Install dependencies"
+    dir: .
+    cmds:
+      - go mod download
+      - go mod tidy
+
+  deps-update:
+    desc: "Update dependencies"
+    dir: .
+    cmds:
+      - go get -u ./...
+      - go mod tidy
+
+  testdata:
+    desc: "Generate test data"
+    dir: .
+    cmds:
+      - mkdir -p testdata
+      - |
+        if command -v ffmpeg >/dev/null 2>&1; then
+          echo "Generating test A-law files with ffmpeg..."
+          ffmpeg -f lavfi -i "sine=frequency=1000:duration=1" -ar 16000 -ac 1 -f alaw testdata/sine_1khz.alaw -y
+          ffmpeg -f lavfi -i "sine=frequency=440:duration=1" -ar 16000 -ac 1 -f alaw testdata/sine_440hz.alaw -y
+          ffmpeg -f lavfi -i "anoisesrc=duration=1" -ar 16000 -ac 1 -f alaw testdata/noise.alaw -y
+        else
+          echo "ffmpeg not found, creating dummy test files..."
+          dd if=/dev/zero of=testdata/sine_1khz.alaw bs=320 count=50 2>/dev/null
+          dd if=/dev/zero of=testdata/sine_440hz.alaw bs=320 count=50 2>/dev/null
+          dd if=/dev/zero of=testdata/noise.alaw bs=320 count=50 2>/dev/null
+        fi
+
+  clean:
+    desc: "Clean build artifacts"
+    dir: .
+    cmds:
+      - go clean
+      - rm -rf build
+      - rm -f coverage.out coverage.html
+
+  clean-all:
+    desc: "Clean all artifacts including test data"
+    deps: [clean]
+    cmds:
+      - rm -rf testdata
+
+  dev:
+    desc: "Run in development mode (build + test + run example)"
+    deps: [build, testdata]
+    cmds:
+      - |
+        if [ -f build/open_tool_speex ]; then
+          echo "Running development example..."
+          build/open_tool_speex -mic testdata/sine_1khz.alaw -speaker testdata/sine_440hz.alaw -output testdata/output.alaw -bypass
+        else
+          echo "Binary not found"
+          exit 1
+        fi
+
+  ci-test:
+    desc: "Run CI tests (no external dependencies)"
+    dir: .
+    cmds:
+      - go test -v -race ./...
+
+  ci-build:
+    desc: "CI build for current platform"
+    dir: .
+    cmds:
+      - go build -o build/open_tool_speex ./cmd/open_tool_speex
+
+  release-prepare:
+    desc: "Prepare release (build all platforms)"
+    deps: [clean, test, build-all]
+    cmds:
+      - echo "Release prepared in build/"
+      - ls -la build/
+
+  help:
+    desc: "Show available tasks"
+    cmds:
+      - task --list

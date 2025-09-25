@@ -4,6 +4,8 @@
 *.dll
 *.so
 *.dylib
+open_tool_speex
+open_tool_speex-*
 
 # Test binary, built with `go test -c`
 *.test
@@ -16,6 +18,16 @@
 
 # Go workspace file
 go.work
+
+# Build directory
+build/
+
+# Test data directory
+testdata/
+
+# Coverage files
+coverage.out
+coverage.html
 
 # IDE files
 .vscode/
@@ -33,15 +45,17 @@ go.work
 ehthumbs.db
 Thumbs.db
 
-# Project specific
-speex
-speex-*
-*.alaw
-*.raw
-*.pcm
-build/
-dist/
-
 # Temporary files
-temp/
-tmp/
+*.tmp
+*.temp
+
+# Log files
+*.log
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Task cache
+.task/
