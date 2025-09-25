@@ -1,4 +1,4 @@
-# Speex AEC Console Tool
+# Open Tool Speex
 
 **Мощное консольное приложение для эхоподавления и шумоподавления** с использованием библиотеки SpeexDSP. 
 
@@ -35,9 +35,9 @@
 
 1. Идите в [Releases](../../releases)
 2. Скачайте версию для вашей платформы:
-   - **Linux**: `speex-linux`
-   - **macOS**: `speex-macos` 
-   - **Windows**: `speex.exe`
+   - **Linux**: `open_tool_speex-linux`
+   - **macOS**: `open_tool_speex-macos` 
+   - **Windows**: `open_tool_speex.exe`
 3. Готово! Никаких зависимостей устанавливать не нужно
 
 ### 🛠 Сборка из исходников
@@ -46,13 +46,13 @@
 ```bash
 sudo apt update
 sudo apt install libspeexdsp-dev pkg-config golang-go
-go build -o speex
+go build -o open_tool_speex
 ```
 
 #### macOS
 ```bash
 brew install speexdsp pkg-config go
-go build -o speex
+go build -o open_tool_speex
 ```
 
 #### 🤖 Автоматическая сборка через GitHub Actions
@@ -64,14 +64,14 @@ go build -o speex
 
 ```bash
 # Базовый запуск (16 кГц, 20 мс кадр, хвост 200 мс)
-./speex -mic microphone.alaw -speaker speaker.alaw -output clean_output.alaw
+./open_tool_speex -mic microphone.alaw -speaker speaker.alaw -output clean_output.alaw
 
 # Кадр 10 мс (160 сэмплов), хвост 150 мс, 16 кГц
-./speex -mic mic.alaw -speaker spk.alaw -output out.alaw \
+./open_tool_speex -mic mic.alaw -speaker spk.alaw -output out.alaw \
   -sample-rate 16000 -frame-size 160 -echo-tail 150
 
 # Явная длина фильтра 4096 сэмплов (перекрывает echo-tail)
-./speex -mic mic.alaw -speaker spk.alaw -output out.alaw \
+./open_tool_speex -mic mic.alaw -speaker spk.alaw -output out.alaw \
   -filter-len 4096
 ```
 
@@ -115,10 +115,10 @@ go build -o speex
 
 ```bash
 # Обычный режим: mic[n] + speaker[n] -> output[n]
-./speex -mic mic.alaw -speaker spk.alaw -output normal.alaw
+./open_tool_speex -mic mic.alaw -speaker spk.alaw -output normal.alaw
 
 # Режим с компенсацией: mic[n] + speaker[n-1] -> output[n]  
-./speex -mic mic.alaw -speaker spk.alaw -output delayed.alaw -prev-speaker
+./open_tool_speex -mic mic.alaw -speaker spk.alaw -output delayed.alaw -prev-speaker
 ```
 
 ### 🎛️ Режимы обработки
@@ -127,22 +127,22 @@ go build -o speex
 
 ```bash
 # 1. 🔊🔇 AEC → NS (по умолчанию): эхоподавление, затем шумоподавление
-./speex -mic mic.alaw -speaker spk.alaw -output aec_first.alaw
+./open_tool_speex -mic mic.alaw -speaker spk.alaw -output aec_first.alaw
 
 # 2. 🔇🔊 NS → AEC: шумоподавление, затем эхоподавление  
-./speex -mic mic.alaw -speaker spk.alaw -output ns_first.alaw -ns-first
+./open_tool_speex -mic mic.alaw -speaker spk.alaw -output ns_first.alaw -ns-first
 
 # 3. 🔇 Только NS: только шумоподавление (speaker файл не нужен)
-./speex -mic mic.alaw -output ns_only.alaw -ns-only
+./open_tool_speex -mic mic.alaw -output ns_only.alaw -ns-only
 
 # 4. 🔊 Только AEC: только эхоподавление (speaker файл обязателен)
-./speex -mic mic.alaw -speaker spk.alaw -output aec_only.alaw -aec-only
+./open_tool_speex -mic mic.alaw -speaker spk.alaw -output aec_only.alaw -aec-only
 
 # 5. ⚡ Bypass: без обработки (для тестирования и диагностики)
-./speex -mic mic.alaw -output unchanged.alaw -bypass
+./open_tool_speex -mic mic.alaw -output unchanged.alaw -bypass
 
 # 🕐 Дополнительно: любой режим с компенсацией задержки (кроме NS-only и bypass)
-./speex -mic mic.alaw -speaker spk.alaw -output delayed.alaw -aec-only -prev-speaker
+./open_tool_speex -mic mic.alaw -speaker spk.alaw -output delayed.alaw -aec-only -prev-speaker
 ```
 
 **Когда использовать NS-first:**
@@ -156,7 +156,7 @@ go build -o speex
 
 ```bash
 # Только подавление шума (speaker файл не нужен)
-./speex -mic noisy_audio.alaw -output clean_audio.alaw -ns-only
+./open_tool_speex -mic noisy_audio.alaw -output clean_audio.alaw -ns-only
 ```
 
 **Когда использовать NS-only:**
@@ -171,10 +171,10 @@ go build -o speex
 
 ```bash
 # Только эхоподавление (speaker файл обязателен)
-./speex -mic mic_with_echo.alaw -speaker reference.alaw -output clean.alaw -aec-only
+./open_tool_speex -mic mic_with_echo.alaw -speaker reference.alaw -output clean.alaw -aec-only
 
 # AEC с компенсацией задержки
-./speex -mic mic.alaw -speaker ref.alaw -output clean.alaw -aec-only -prev-speaker
+./open_tool_speex -mic mic.alaw -speaker ref.alaw -output clean.alaw -aec-only -prev-speaker
 ```
 
 **Когда использовать AEC-only:**
@@ -187,22 +187,22 @@ go build -o speex
 
 ```bash
 # Стандартное подавление шума
-./speex -mic noisy.alaw -output clean.alaw -ns-only
+./open_tool_speex -mic noisy.alaw -output clean.alaw -ns-only
 
 # Агрессивное подавление шума (может ухудшить качество речи)
-./speex -mic noisy.alaw -output clean.alaw -ns-only -noise-suppress -25
+./open_tool_speex -mic noisy.alaw -output clean.alaw -ns-only -noise-suppress -25
 
 # Мягкое подавление шума для сохранения качества речи
-./speex -mic noisy.alaw -output clean.alaw -ns-only -noise-suppress -8
+./open_tool_speex -mic noisy.alaw -output clean.alaw -ns-only -noise-suppress -8
 
 # С включенным VAD (детектор речи)
-./speex -mic noisy.alaw -output clean.alaw -ns-only -vad -vad-prob-start 85
+./open_tool_speex -mic noisy.alaw -output clean.alaw -ns-only -vad -vad-prob-start 85
 
 # С автоматической регулировкой громкости
-./speex -mic quiet.alaw -output loud.alaw -ns-only -agc -agc-level 35000
+./open_tool_speex -mic quiet.alaw -output loud.alaw -ns-only -agc -agc-level 35000
 
 # Полная конфигурация: NS + VAD + AGC
-./speex -mic input.alaw -output output.alaw -ns-only \
+./open_tool_speex -mic input.alaw -output output.alaw -ns-only \
   -noise-suppress -12 -vad -vad-prob-start 75 -vad-prob-continue 60 \
   -agc -agc-level 28000
 ```
@@ -272,12 +272,12 @@ sox -t al -r 16000 -c 1 input.alaw output.wav
 
 ### Базовое эхоподавление
 ```bash
-./speex -mic recorded_call.alaw -speaker playback_reference.alaw
+./open_tool_speex -mic recorded_call.alaw -speaker playback_reference.alaw
 ```
 
 ### С указанием выходного файла
 ```bash
-./speex -mic mic.alaw -speaker spk.alaw -output cleaned.alaw
+./open_tool_speex -mic mic.alaw -speaker spk.alaw -output cleaned.alaw
 ```
 
 ## 🚨 Решение проблем
@@ -321,7 +321,7 @@ sox -t al -r 16000 -c 1 input.alaw output.wav
 
 1. **📦 Скачайте** готовый бинарник из [Releases](../../releases)
 2. **🎵 Подготовьте** A-law файлы (16 кГц моно) 
-3. **🚀 Запустите**: `./speex -mic input.alaw -speaker ref.alaw`
+3. **🚀 Запустите**: `./open_tool_speex -mic input.alaw -speaker ref.alaw`
 
 ### Или автоматическая сборка:
 

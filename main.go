@@ -80,7 +80,7 @@ func main() {
 	// Speaker file is required for all modes except NS-only, bypass, and test-alaw
 	speakerRequired := !*nsOnly && !*bypass && !*testAlaw
 	if *help || *micFile == "" || (speakerRequired && *speakerFile == "") {
-		fmt.Fprintf(os.Stderr, "Speex AEC Console Tool\n\n")
+		fmt.Fprintf(os.Stderr, "Open Tool Speex\n\n")
 		fmt.Fprintf(os.Stderr, "Usage: %s -mic <mic_file> [-speaker <speaker_file>] [-output <output_file>]\n\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "Parameters:\n")
 		fmt.Fprintf(os.Stderr, "  -mic              Microphone input file (raw A-law, 16kHz mono)\n")
