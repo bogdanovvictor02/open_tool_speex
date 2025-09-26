@@ -125,8 +125,6 @@ jobs:
         echo "C:\ProgramData\chocolatey\lib\pkgconfiglite\tools\bin" >> $GITHUB_PATH
         # Install MSYS2 for development tools
         choco install msys2 -y
-        # Refresh environment
-        refreshenv
 
     - name: Install Task
       shell: bash
@@ -152,9 +150,15 @@ jobs:
           ls -la
           find . -name "*.go" -type f
           ls -la cmd/
+          # Check if pkg-config is available
+          which pkg-config || echo "pkg-config not found"
           # Set environment variables for Windows CGO
           export PKG_CONFIG_PATH="/c/ProgramData/chocolatey/lib/pkgconfiglite/tools/lib/pkgconfig"
           export CGO_ENABLED=1
+          # Try to find pkg-config in common locations
+          if [ -f "/c/ProgramData/chocolatey/lib/pkgconfiglite/tools/bin/pkg-config.exe" ]; then
+            export PATH="/c/ProgramData/chocolatey/lib/pkgconfiglite/tools/bin:$PATH"
+          fi
         else
           ls -la
           find . -name "*.go" -type f
