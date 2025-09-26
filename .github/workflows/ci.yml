@@ -125,8 +125,10 @@ jobs:
         echo "C:\ProgramData\chocolatey\lib\pkgconfiglite\tools\bin" >> $GITHUB_PATH
         # Install MSYS2 for development tools
         choco install msys2 -y
-        # Install SpeexDSP via vcpkg
-        choco install vcpkg -y
+        # Install vcpkg manually
+        git clone https://github.com/Microsoft/vcpkg.git C:\vcpkg
+        cd C:\vcpkg
+        .\bootstrap-vcpkg.bat
         # Add vcpkg to PATH
         echo "C:\vcpkg" >> $GITHUB_PATH
 
