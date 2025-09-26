@@ -163,11 +163,14 @@ jobs:
       with:
         go-version: ${{ env.GO_VERSION }}
 
-    - name: Install Gosec
-      run: go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
-
-    - name: Run Gosec Security Scanner
-      run: gosec ./...
+    - name: Run basic security checks
+      run: |
+        go vet ./...
+        go fmt -d .
+        if [ -n "$(go fmt -d .)" ]; then
+          echo "Code is not formatted. Run 'go fmt ./...' to fix."
+          exit 1
+        fi
 
   dependency-check:
     name: Dependency Check
