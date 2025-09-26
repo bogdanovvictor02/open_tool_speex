@@ -163,10 +163,11 @@ jobs:
       with:
         go-version: ${{ env.GO_VERSION }}
 
+    - name: Install Gosec
+      run: go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+
     - name: Run Gosec Security Scanner
-      uses: securecodewarrior/github-action-gosec@master
-      with:
-        args: './...'
+      run: gosec ./...
 
   dependency-check:
     name: Dependency Check
@@ -181,8 +182,18 @@ jobs:
       with:
         go-version: ${{ env.GO_VERSION }}
 
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libspeexdsp-dev pkg-config
+
+    - name: Install Task
+      uses: arduino/setup-task@v1
+      with:
+        version: 3.x
+
     - name: Run dependency check
       run: |
-        go list -json -deps ./... | nancy sleuth
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        go mod download
+        go mod verify
+        go list -m all
