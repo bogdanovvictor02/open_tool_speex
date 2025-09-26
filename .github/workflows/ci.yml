@@ -116,6 +116,18 @@ jobs:
       run: |
         brew install speexdsp pkg-config
 
+    - name: Install dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        # Install pkg-config for Windows
+        choco install pkgconfiglite -y
+        # Add pkg-config to PATH
+        echo "C:\ProgramData\chocolatey\lib\pkgconfiglite\tools\bin" >> $GITHUB_PATH
+        # Install MSYS2 for development tools
+        choco install msys2 -y
+        # Refresh environment
+        refreshenv
+
     - name: Install Task
       shell: bash
       run: |
@@ -140,6 +152,9 @@ jobs:
           ls -la
           find . -name "*.go" -type f
           ls -la cmd/
+          # Set environment variables for Windows CGO
+          export PKG_CONFIG_PATH="/c/ProgramData/chocolatey/lib/pkgconfiglite/tools/lib/pkgconfig"
+          export CGO_ENABLED=1
         else
           ls -la
           find . -name "*.go" -type f
