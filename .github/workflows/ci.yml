@@ -125,6 +125,10 @@ jobs:
         echo "C:\ProgramData\chocolatey\lib\pkgconfiglite\tools\bin" >> $GITHUB_PATH
         # Install MSYS2 for development tools
         choco install msys2 -y
+        # Install SpeexDSP via vcpkg
+        choco install vcpkg -y
+        # Add vcpkg to PATH
+        echo "C:\vcpkg" >> $GITHUB_PATH
 
     - name: Install Task
       shell: bash
@@ -152,9 +156,13 @@ jobs:
           ls -la cmd/
           # Check if pkg-config is available
           which pkg-config || echo "pkg-config not found"
+          # Install SpeexDSP via vcpkg
+          vcpkg install speexdsp:x64-windows
           # Set environment variables for Windows CGO
-          export PKG_CONFIG_PATH="/c/ProgramData/chocolatey/lib/pkgconfiglite/tools/lib/pkgconfig"
+          export PKG_CONFIG_PATH="/c/vcpkg/installed/x64-windows/lib/pkgconfig"
           export CGO_ENABLED=1
+          export CGO_CFLAGS="-I/c/vcpkg/installed/x64-windows/include"
+          export CGO_LDFLAGS="-L/c/vcpkg/installed/x64-windows/lib"
           # Try to find pkg-config in common locations
           if [ -f "/c/ProgramData/chocolatey/lib/pkgconfiglite/tools/bin/pkg-config.exe" ]; then
             export PATH="/c/ProgramData/chocolatey/lib/pkgconfiglite/tools/bin:$PATH"
