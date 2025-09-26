@@ -43,7 +43,7 @@ jobs:
         if [ "$RUNNER_OS" = "Windows" ]; then
           # Download Task binary directly for Windows
           curl -L https://github.com/go-task/task/releases/download/v3.35.0/task_windows_amd64.zip -o task.zip
-          unzip task.zip
+          unzip -o task.zip
           chmod +x task.exe
           sudo mv task.exe /usr/local/bin/task
         else
@@ -119,7 +119,7 @@ jobs:
         if [ "$RUNNER_OS" = "Windows" ]; then
           # Download Task binary directly for Windows
           curl -L https://github.com/go-task/task/releases/download/v3.35.0/task_windows_amd64.zip -o task.zip
-          unzip task.zip
+          unzip -o task.zip
           chmod +x task.exe
           sudo mv task.exe /usr/local/bin/task
         else
@@ -172,7 +172,7 @@ jobs:
         if [ "$RUNNER_OS" = "Windows" ]; then
           # Download Task binary directly for Windows
           curl -L https://github.com/go-task/task/releases/download/v3.35.0/task_windows_amd64.zip -o task.zip
-          unzip task.zip
+          unzip -o task.zip
           chmod +x task.exe
           sudo mv task.exe /usr/local/bin/task
         else
