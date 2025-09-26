@@ -33,11 +33,12 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.mod') }}
         restore-keys: |
           ${{ runner.os }}-go-
 
     - name: Install Task
+      shell: bash
       run: |
         if [ "$RUNNER_OS" = "Windows" ]; then
           choco install task --version 3.35.0 -y
@@ -46,6 +47,7 @@ jobs:
         fi
 
     - name: Run tests
+      shell: bash
       run: |
         pwd
         ls -la
@@ -108,6 +110,7 @@ jobs:
         brew install speexdsp pkg-config
 
     - name: Install Task
+      shell: bash
       run: |
         if [ "$RUNNER_OS" = "Windows" ]; then
           choco install task --version 3.35.0 -y
@@ -116,6 +119,7 @@ jobs:
         fi
 
     - name: Build
+      shell: bash
       run: |
         pwd
         if [ "$RUNNER_OS" = "Windows" ]; then
@@ -155,6 +159,7 @@ jobs:
         sudo apt-get install -y libspeexdsp-dev pkg-config
 
     - name: Install Task
+      shell: bash
       run: |
         if [ "$RUNNER_OS" = "Windows" ]; then
           choco install task --version 3.35.0 -y
