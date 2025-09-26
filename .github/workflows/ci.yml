@@ -41,7 +41,11 @@ jobs:
       shell: bash
       run: |
         if [ "$RUNNER_OS" = "Windows" ]; then
-          choco install task --version 3.35.0 -y
+          # Download Task binary directly for Windows
+          curl -L https://github.com/go-task/task/releases/download/v3.35.0/task_windows_amd64.zip -o task.zip
+          unzip task.zip
+          chmod +x task.exe
+          sudo mv task.exe /usr/local/bin/task
         else
           sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
         fi
@@ -113,7 +117,11 @@ jobs:
       shell: bash
       run: |
         if [ "$RUNNER_OS" = "Windows" ]; then
-          choco install task --version 3.35.0 -y
+          # Download Task binary directly for Windows
+          curl -L https://github.com/go-task/task/releases/download/v3.35.0/task_windows_amd64.zip -o task.zip
+          unzip task.zip
+          chmod +x task.exe
+          sudo mv task.exe /usr/local/bin/task
         else
           sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
         fi
@@ -162,7 +170,11 @@ jobs:
       shell: bash
       run: |
         if [ "$RUNNER_OS" = "Windows" ]; then
-          choco install task --version 3.35.0 -y
+          # Download Task binary directly for Windows
+          curl -L https://github.com/go-task/task/releases/download/v3.35.0/task_windows_amd64.zip -o task.zip
+          unzip task.zip
+          chmod +x task.exe
+          sudo mv task.exe /usr/local/bin/task
         else
           sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
         fi
