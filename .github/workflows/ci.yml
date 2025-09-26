@@ -43,7 +43,10 @@ jobs:
         version: 3.x
 
     - name: Run tests
-      run: task test
+      run: |
+        pwd
+        ls -la
+        task test
 
     - name: Run tests with coverage
       run: task test-coverage
@@ -107,7 +110,10 @@ jobs:
         version: 3.x
 
     - name: Build
-      run: task build
+      run: |
+        pwd
+        ls -la
+        task build
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
