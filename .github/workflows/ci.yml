@@ -137,9 +137,9 @@ jobs:
       run: |
         pwd
         if [ "$RUNNER_OS" = "Windows" ]; then
-          dir
-          Get-ChildItem -Recurse -Name "*.go"
-          dir cmd
+          ls -la
+          find . -name "*.go" -type f
+          ls -la cmd/
         else
           ls -la
           find . -name "*.go" -type f
