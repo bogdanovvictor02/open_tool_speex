@@ -38,9 +38,8 @@ jobs:
           ${{ runner.os }}-go-
 
     - name: Install Task
-      uses: arduino/setup-task@v1
-      with:
-        version: 3.x
+      run: |
+        sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
 
     - name: Run tests
       run: |
@@ -105,9 +104,8 @@ jobs:
         brew install speexdsp pkg-config
 
     - name: Install Task
-      uses: arduino/setup-task@v1
-      with:
-        version: 3.x
+      run: |
+        sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
 
     - name: Build
       run: |
@@ -143,9 +141,8 @@ jobs:
         sudo apt-get install -y libspeexdsp-dev pkg-config
 
     - name: Install Task
-      uses: arduino/setup-task@v1
-      with:
-        version: 3.x
+      run: |
+        sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
 
     - name: Download build artifacts
       uses: actions/download-artifact@v4
