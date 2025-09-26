@@ -18,9 +18,16 @@ tasks:
     cmds:
       - mkdir -p build
       - pwd
-      - ls -la
-      - find . -name "*.go" -type f
-      - ls -la cmd/
+      - |
+        if [ "$OS" = "Windows_NT" ]; then
+          dir
+          Get-ChildItem -Recurse -Name "*.go"
+          dir cmd
+        else
+          ls -la
+          find . -name "*.go" -type f
+          ls -la cmd/
+        fi
       - go build -a -installsuffix cgo -ldflags "-s -w" -o build/open_tool_speex ./cmd/open_tool_speex
     sources:
       - "cmd/**/*.go"

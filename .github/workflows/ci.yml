@@ -39,7 +39,11 @@ jobs:
 
     - name: Install Task
       run: |
-        sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          choco install task --version 3.35.0 -y
+        else
+          sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
+        fi
 
     - name: Run tests
       run: |
@@ -105,14 +109,24 @@ jobs:
 
     - name: Install Task
       run: |
-        sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          choco install task --version 3.35.0 -y
+        else
+          sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
+        fi
 
     - name: Build
       run: |
         pwd
-        ls -la
-        find . -name "*.go" -type f
-        ls -la cmd/
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          dir
+          Get-ChildItem -Recurse -Name "*.go"
+          dir cmd
+        else
+          ls -la
+          find . -name "*.go" -type f
+          ls -la cmd/
+        fi
         task build
 
     - name: Upload build artifacts
@@ -142,7 +156,11 @@ jobs:
 
     - name: Install Task
       run: |
-        sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          choco install task --version 3.35.0 -y
+        else
+          sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
+        fi
 
     - name: Download build artifacts
       uses: actions/download-artifact@v4
