@@ -190,17 +190,17 @@ func TestParseFlags(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set test args
 			os.Args = tt.args
-			
+
 			// Reset flag.CommandLine to avoid conflicts between tests
 			flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-			
+
 			cfg, err := ParseFlags()
-			
+
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseFlags() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			
+
 			if !tt.wantErr && cfg != nil && !tt.check(cfg) {
 				t.Errorf("ParseFlags() configuration check failed")
 			}
@@ -210,48 +210,48 @@ func TestParseFlags(t *testing.T) {
 
 func TestDefaultConfig(t *testing.T) {
 	cfg := types.DefaultConfig()
-	
+
 	// Check default values
 	if cfg.OutputFile != "output.alaw" {
 		t.Errorf("DefaultConfig() OutputFile = %s, want output.alaw", cfg.OutputFile)
 	}
-	
+
 	if cfg.Mode != types.ModeAECFirst {
 		t.Errorf("DefaultConfig() Mode = %v, want %v", cfg.Mode, types.ModeAECFirst)
 	}
-	
+
 	if cfg.SampleRate != 16000 {
 		t.Errorf("DefaultConfig() SampleRate = %d, want 16000", cfg.SampleRate)
 	}
-	
+
 	if cfg.FrameSize != 320 {
 		t.Errorf("DefaultConfig() FrameSize = %d, want 320", cfg.FrameSize)
 	}
-	
+
 	if cfg.EchoTailMs != 200 {
 		t.Errorf("DefaultConfig() EchoTailMs = %d, want 200", cfg.EchoTailMs)
 	}
-	
+
 	if cfg.NS.NoiseSuppress != -15.0 {
 		t.Errorf("DefaultConfig() NS.NoiseSuppress = %f, want -15.0", cfg.NS.NoiseSuppress)
 	}
-	
+
 	if cfg.NS.EnableVAD != false {
 		t.Errorf("DefaultConfig() NS.EnableVAD = %v, want false", cfg.NS.EnableVAD)
 	}
-	
+
 	if cfg.NS.VADProbStart != 80 {
 		t.Errorf("DefaultConfig() NS.VADProbStart = %d, want 80", cfg.NS.VADProbStart)
 	}
-	
+
 	if cfg.NS.VADProbCont != 65 {
 		t.Errorf("DefaultConfig() NS.VADProbCont = %d, want 65", cfg.NS.VADProbCont)
 	}
-	
+
 	if cfg.NS.EnableAGC != false {
 		t.Errorf("DefaultConfig() NS.EnableAGC = %v, want false", cfg.NS.EnableAGC)
 	}
-	
+
 	if cfg.NS.AGCLevel != 30000.0 {
 		t.Errorf("DefaultConfig() NS.AGCLevel = %f, want 30000.0", cfg.NS.AGCLevel)
 	}

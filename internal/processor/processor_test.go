@@ -20,8 +20,8 @@ func TestProcessor_Process(t *testing.T) {
 	createDummyAlawFile(t, speakerFile, 320)
 
 	tests := []struct {
-		name   string
-		config *types.Config
+		name    string
+		config  *types.Config
 		wantErr bool
 	}{
 		{
@@ -74,7 +74,7 @@ func TestProcessor_Process(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			processor := NewProcessor(tt.config)
 			err := processor.Process()
-			
+
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Processor.Process() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -97,34 +97,34 @@ func TestProcessor_needsSpeakerFile(t *testing.T) {
 		want   bool
 	}{
 		{
-			name: "bypass mode",
+			name:   "bypass mode",
 			config: &types.Config{Mode: types.ModeBypass},
-			want:  false,
+			want:   false,
 		},
 		{
-			name: "test alaw mode",
+			name:   "test alaw mode",
 			config: &types.Config{Mode: types.ModeTestAlaw},
-			want:  false,
+			want:   false,
 		},
 		{
-			name: "ns only mode",
+			name:   "ns only mode",
 			config: &types.Config{Mode: types.ModeNSOnly},
-			want:  false,
+			want:   false,
 		},
 		{
-			name: "aec only mode",
+			name:   "aec only mode",
 			config: &types.Config{Mode: types.ModeAECOnly},
-			want:  true,
+			want:   true,
 		},
 		{
-			name: "ns first mode",
+			name:   "ns first mode",
 			config: &types.Config{Mode: types.ModeNSFirst},
-			want:  true,
+			want:   true,
 		},
 		{
-			name: "aec first mode",
+			name:   "aec first mode",
 			config: &types.Config{Mode: types.ModeAECFirst},
-			want:  true,
+			want:   true,
 		},
 	}
 
@@ -143,25 +143,25 @@ func TestProcessor_getAECSpeakerFrame(t *testing.T) {
 	prevSpeakerFrame := []int16{10, 20, 30, 40, 50}
 
 	tests := []struct {
-		name           string
-		config         *types.Config
-		speakerFrame   []int16
+		name             string
+		config           *types.Config
+		speakerFrame     []int16
 		prevSpeakerFrame []int16
-		want           []int16
+		want             []int16
 	}{
 		{
-			name: "use current speaker frame",
-			config: &types.Config{UsePrevSpeaker: false},
-			speakerFrame: speakerFrame,
+			name:             "use current speaker frame",
+			config:           &types.Config{UsePrevSpeaker: false},
+			speakerFrame:     speakerFrame,
 			prevSpeakerFrame: prevSpeakerFrame,
-			want: speakerFrame,
+			want:             speakerFrame,
 		},
 		{
-			name: "use previous speaker frame",
-			config: &types.Config{UsePrevSpeaker: true},
-			speakerFrame: speakerFrame,
+			name:             "use previous speaker frame",
+			config:           &types.Config{UsePrevSpeaker: true},
+			speakerFrame:     speakerFrame,
 			prevSpeakerFrame: prevSpeakerFrame,
-			want: prevSpeakerFrame,
+			want:             prevSpeakerFrame,
 		},
 	}
 
@@ -169,12 +169,12 @@ func TestProcessor_getAECSpeakerFrame(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			processor := &Processor{config: tt.config}
 			got := processor.getAECSpeakerFrame(tt.speakerFrame, tt.prevSpeakerFrame)
-			
+
 			if len(got) != len(tt.want) {
 				t.Errorf("Processor.getAECSpeakerFrame() length = %d, want %d", len(got), len(tt.want))
 				return
 			}
-			
+
 			for i := range got {
 				if got[i] != tt.want[i] {
 					t.Errorf("Processor.getAECSpeakerFrame()[%d] = %d, want %d", i, got[i], tt.want[i])
@@ -187,7 +187,7 @@ func TestProcessor_getAECSpeakerFrame(t *testing.T) {
 // Helper function to create dummy A-law files
 func createDummyAlawFile(t *testing.T, filename string, size int) {
 	t.Helper()
-	
+
 	file, err := os.Create(filename)
 	if err != nil {
 		t.Fatalf("Failed to create test file %s: %v", filename, err)
@@ -199,7 +199,7 @@ func createDummyAlawFile(t *testing.T, filename string, size int) {
 	for i := range data {
 		data[i] = 0xD5
 	}
-	
+
 	if _, err := file.Write(data); err != nil {
 		t.Fatalf("Failed to write test data to %s: %v", filename, err)
 	}

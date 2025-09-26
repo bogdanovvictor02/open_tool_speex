@@ -69,9 +69,9 @@ func (p *Processor) Process() error {
 
 // needsSpeakerFile returns true if speaker file is needed for current mode
 func (p *Processor) needsSpeakerFile() bool {
-	return p.config.Mode != types.ModeNSOnly && 
-		   p.config.Mode != types.ModeBypass && 
-		   p.config.Mode != types.ModeTestAlaw
+	return p.config.Mode != types.ModeNSOnly &&
+		p.config.Mode != types.ModeBypass &&
+		p.config.Mode != types.ModeTestAlaw
 }
 
 // initializeComponents initializes AEC and preprocessor based on mode
@@ -298,7 +298,7 @@ func (p *Processor) zeroPadFrames(micAlawFrame []byte, micBytesRead int, speaker
 func (p *Processor) printModeInfo() {
 	var modeStr []string
 	modeStr = append(modeStr, p.config.Mode.String())
-	
+
 	if p.config.UsePrevSpeaker && p.needsSpeakerFile() {
 		modeStr = append(modeStr, "delay compensation")
 	}

@@ -89,7 +89,7 @@ func TestAlawRoundTrip(t *testing.T) {
 		t.Run("roundtrip", func(t *testing.T) {
 			alaw := Linear2Alaw(val)
 			back := Alaw2Linear(alaw)
-			
+
 			// Allow tolerance due to A-law compression (increases with magnitude)
 			tolerance := int16(10)
 			if abs(val) > 1000 {
@@ -98,7 +98,7 @@ func TestAlawRoundTrip(t *testing.T) {
 			if abs(val) > 10000 {
 				tolerance = int16(1000)
 			}
-			
+
 			if abs(back-val) > tolerance {
 				t.Errorf("Round trip failed: %d -> 0x%02X -> %d (tolerance: %d)", val, alaw, back, tolerance)
 			}
