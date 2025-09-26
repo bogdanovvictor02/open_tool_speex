@@ -45,7 +45,10 @@ jobs:
           curl -L https://github.com/go-task/task/releases/download/v3.35.0/task_windows_amd64.zip -o task.zip
           unzip -o task.zip
           chmod +x task.exe
-          sudo mv task.exe /usr/local/bin/task
+          # Add to PATH for current session
+          echo "$PWD" >> $GITHUB_PATH
+          # Copy to a location in PATH
+          cp task.exe /usr/local/bin/task || cp task.exe /usr/bin/task || cp task.exe /bin/task
         else
           sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
         fi
@@ -121,7 +124,10 @@ jobs:
           curl -L https://github.com/go-task/task/releases/download/v3.35.0/task_windows_amd64.zip -o task.zip
           unzip -o task.zip
           chmod +x task.exe
-          sudo mv task.exe /usr/local/bin/task
+          # Add to PATH for current session
+          echo "$PWD" >> $GITHUB_PATH
+          # Copy to a location in PATH
+          cp task.exe /usr/local/bin/task || cp task.exe /usr/bin/task || cp task.exe /bin/task
         else
           sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
         fi
@@ -174,7 +180,10 @@ jobs:
           curl -L https://github.com/go-task/task/releases/download/v3.35.0/task_windows_amd64.zip -o task.zip
           unzip -o task.zip
           chmod +x task.exe
-          sudo mv task.exe /usr/local/bin/task
+          # Add to PATH for current session
+          echo "$PWD" >> $GITHUB_PATH
+          # Copy to a location in PATH
+          cp task.exe /usr/local/bin/task || cp task.exe /usr/bin/task || cp task.exe /bin/task
         else
           sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
         fi
