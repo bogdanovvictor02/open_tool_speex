@@ -174,7 +174,30 @@ jobs:
           find . -name "*.go" -type f
           ls -la cmd/
         fi
-        task build
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          task build-windows
+        elif [ "$RUNNER_OS" = "macOS" ]; then
+          task build-macos
+        else
+          task build-linux
+        fi
+
+    - name: Verify build
+      run: |
+        if [ "$RUNNER_OS" = "Windows" ] && [ -f "build/open_tool_speex.exe" ]; then
+          echo "Windows build successful"
+          ls -la build/
+        elif [ "$RUNNER_OS" = "macOS" ] && [ -f "build/open_tool_speex-macos" ]; then
+          echo "macOS build successful"
+          ls -la build/
+        elif [ "$RUNNER_OS" = "Linux" ] && [ -f "build/open_tool_speex-linux" ]; then
+          echo "Linux build successful"
+          ls -la build/
+        else
+          echo "Build failed, no binary found for $RUNNER_OS"
+          ls -la build/
+          exit 1
+        fi
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
@@ -223,7 +246,16 @@ jobs:
         name: open_tool_speex-linux
 
     - name: Make binary executable
-      run: chmod +x build/open_tool_speex-linux
+      run: |
+        if [ -f "build/open_tool_speex-linux" ]; then
+          chmod +x build/open_tool_speex-linux
+          echo "Binary made executable successfully"
+        else
+          echo "Binary not found, checking build directory:"
+          ls -la build/
+          echo "Build failed, binary was not created"
+          exit 1
+        fi
 
     - name: Run integration tests
       run: task test-integration
