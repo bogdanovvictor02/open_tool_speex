@@ -113,6 +113,8 @@ jobs:
       run: |
         pwd
         ls -la
+        find . -name "*.go" -type f
+        ls -la cmd/
         task build
 
     - name: Upload build artifacts
@@ -177,9 +179,9 @@ jobs:
     - name: Run basic security checks
       run: |
         go vet ./...
-        go fmt -d .
-        if [ -n "$(go fmt -d .)" ]; then
+        if [ -n "$(gofmt -s -l .)" ]; then
           echo "Code is not formatted. Run 'go fmt ./...' to fix."
+          gofmt -s -l .
           exit 1
         fi
 
