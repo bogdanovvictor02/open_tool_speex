@@ -17,6 +17,8 @@ tasks:
     dir: .
     cmds:
       - mkdir -p build
+      - pwd
+      - ls -la
       - go build -a -installsuffix cgo -ldflags "-s -w" -o build/open_tool_speex ./cmd/open_tool_speex
     sources:
       - "cmd/**/*.go"
