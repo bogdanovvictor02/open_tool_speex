@@ -106,8 +106,15 @@ jobs:
         elif [ "$RUNNER_OS" = "macOS" ]; then
           # Set environment variables for macOS CGO
           export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:/usr/local/lib/pkgconfig"
+          # Detect architecture and build accordingly
+          if [ "$(uname -m)" = "arm64" ]; then
+            task build-macos-arm64
+          else
+            task build-macos
+          fi
+        else
+          task build-linux
         fi
-        task build-all
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
@@ -144,6 +151,10 @@ jobs:
         mkdir -p release
         find . -name "open_tool_speex*" -type f -exec cp {} release/ \;
         ls -la release/
+        # Rename ARM64 binary if it exists
+        if [ -f "release/open_tool_speex-macos-arm64" ]; then
+          mv release/open_tool_speex-macos-arm64 release/open_tool_speex-macos
+        fi
 
     - name: Generate changelog
       id: changelog
