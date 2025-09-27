@@ -47,6 +47,13 @@ tasks:
       - mkdir -p build
       - GOOS=darwin GOARCH=amd64 go build -a -installsuffix cgo -ldflags "-s -w" -o build/open_tool_speex-macos ./cmd/open_tool_speex
 
+  build-macos-arm64:
+    desc: "Build for macOS ARM64"
+    dir: .
+    cmds:
+      - mkdir -p build
+      - GOOS=darwin GOARCH=arm64 go build -a -installsuffix cgo -ldflags "-s -w" -o build/open_tool_speex-macos-arm64 ./cmd/open_tool_speex
+
   build-windows:
     desc: "Build for Windows"
     dir: .

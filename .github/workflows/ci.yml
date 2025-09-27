@@ -183,7 +183,12 @@ jobs:
           # Set environment variables for macOS CGO
           export CGO_ENABLED=1
           export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:/usr/local/lib/pkgconfig"
-          task build-macos
+          # Detect architecture and build accordingly
+          if [ "$(uname -m)" = "arm64" ]; then
+            task build-macos-arm64
+          else
+            task build-macos
+          fi
         else
           # Set environment variables for Linux CGO
           export CGO_ENABLED=1
@@ -196,7 +201,10 @@ jobs:
           echo "Windows build successful"
           ls -la build/
         elif [ "$RUNNER_OS" = "macOS" ] && [ -f "build/open_tool_speex-macos" ]; then
-          echo "macOS build successful"
+          echo "macOS x86_64 build successful"
+          ls -la build/
+        elif [ "$RUNNER_OS" = "macOS" ] && [ -f "build/open_tool_speex-macos-arm64" ]; then
+          echo "macOS ARM64 build successful"
           ls -la build/
         elif [ "$RUNNER_OS" = "Linux" ] && [ -f "build/open_tool_speex-linux" ]; then
           echo "Linux build successful"
