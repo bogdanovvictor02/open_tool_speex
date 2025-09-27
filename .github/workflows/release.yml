@@ -55,14 +55,59 @@ jobs:
       if: matrix.os == 'macos-latest'
       run: |
         brew install speexdsp pkg-config
+        # Verify installation
+        pkg-config --cflags speexdsp
+        pkg-config --libs speexdsp
+
+    - name: Install dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        # Install pkg-config for Windows
+        choco install pkgconfiglite -y
+        # Add pkg-config to PATH
+        echo "C:\ProgramData\chocolatey\lib\pkgconfiglite\tools\bin" >> $GITHUB_PATH
+        # Install MSYS2 for development tools
+        choco install msys2 -y
+        # Install vcpkg manually
+        git clone https://github.com/Microsoft/vcpkg.git C:\vcpkg
+        cd C:\vcpkg
+        .\bootstrap-vcpkg.bat
+        # Add vcpkg to PATH
+        echo "C:\vcpkg" >> $GITHUB_PATH
 
     - name: Install Task
-      uses: arduino/setup-task@v1
-      with:
-        version: 3.x
+      shell: bash
+      run: |
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          # Download Task binary directly for Windows
+          curl -L https://github.com/go-task/task/releases/download/v3.35.0/task_windows_amd64.zip -o task.zip
+          unzip -o task.zip
+          chmod +x task.exe
+          # Add to PATH for current session
+          echo "$PWD" >> $GITHUB_PATH
+          # Copy to a location in PATH
+          cp task.exe /usr/local/bin/task || cp task.exe /usr/bin/task || cp task.exe /bin/task
+        else
+          sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
+        fi
 
     - name: Build all platforms
-      run: task build-all
+      shell: bash
+      run: |
+        # Set environment variables for CGO
+        export CGO_ENABLED=1
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          # Set environment variables for Windows CGO
+          export PKG_CONFIG_PATH="/c/vcpkg/installed/x64-windows/lib/pkgconfig"
+          export CGO_CFLAGS="-I/c/vcpkg/installed/x64-windows/include"
+          export CGO_LDFLAGS="-L/c/vcpkg/installed/x64-windows/lib"
+          # Install SpeexDSP via vcpkg
+          vcpkg install speexdsp:x64-windows
+        elif [ "$RUNNER_OS" = "macOS" ]; then
+          # Set environment variables for macOS CGO
+          export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:/usr/local/lib/pkgconfig"
+        fi
+        task build-all
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
@@ -88,9 +133,8 @@ jobs:
         go-version: ${{ env.GO_VERSION }}
 
     - name: Install Task
-      uses: arduino/setup-task@v1
-      with:
-        version: 3.x
+      run: |
+        sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
 
     - name: Download all artifacts
       uses: actions/download-artifact@v4
