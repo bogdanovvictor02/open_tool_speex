@@ -149,12 +149,25 @@ jobs:
     - name: Prepare release assets
       run: |
         mkdir -p release
+        echo "Searching for open_tool_speex files:"
+        find . -name "open_tool_speex*" -type f
+        echo "Copying files to release directory:"
         find . -name "open_tool_speex*" -type f -exec cp {} release/ \;
+        echo "Contents of release directory:"
         ls -la release/
         # Rename ARM64 binary if it exists
         if [ -f "release/open_tool_speex-macos-arm64" ]; then
           mv release/open_tool_speex-macos-arm64 release/open_tool_speex-macos
         fi
+        # Check if all required files exist
+        echo "Checking required files:"
+        for file in "open_tool_speex-linux" "open_tool_speex-macos" "open_tool_speex.exe"; do
+          if [ -f "release/$file" ]; then
+            echo "✓ Found: $file"
+          else
+            echo "✗ Missing: $file"
+          fi
+        done
 
     - name: Generate changelog
       id: changelog
@@ -193,10 +206,9 @@ jobs:
         name: Release ${{ steps.changelog.outputs.tag }}
         body_path: CHANGELOG.md
         files: |
-          release/open_tool_speex-linux
-          release/open_tool_speex-macos
-          release/open_tool_speex.exe
+          release/*
         draft: false
         prerelease: false
+        fail_on_unmatched_files: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
