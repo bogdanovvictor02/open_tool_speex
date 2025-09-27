@@ -262,14 +262,23 @@ jobs:
       with:
         name: open_tool_speex-linux
 
+    - name: Check downloaded artifacts
+      run: |
+        echo "Checking downloaded artifacts:"
+        find . -name "open_tool_speex*" -type f
+        ls -la
+
     - name: Make binary executable
       run: |
+        # Create build directory if it doesn't exist
+        mkdir -p build
+        # Check if binary exists
         if [ -f "build/open_tool_speex-linux" ]; then
           chmod +x build/open_tool_speex-linux
           echo "Binary made executable successfully"
         else
           echo "Binary not found, checking build directory:"
-          ls -la build/
+          ls -la build/ || echo "Build directory does not exist"
           echo "Build failed, binary was not created"
           exit 1
         fi
