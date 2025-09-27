@@ -196,6 +196,7 @@ jobs:
         fi
 
     - name: Verify build
+      shell: bash
       run: |
         if [ "$RUNNER_OS" = "Windows" ] && [ -f "build/open_tool_speex.exe" ]; then
           echo "Windows build successful"
